@@ -50,9 +50,9 @@ def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, com
 	original_N, num_dims = inputs.shape
 
 	if dataset_name in SMALL_VARIABLE_DATASETS:
-		batch_size = max(1, int(8000 / num_dims)) if batched else 1
+		batch_size = max(1, int(80000 / num_dims)) if batched else 1
 	else:
-		batch_size = max(1, int(900 / num_dims)) if batched else 1
+		batch_size = max(1, int(9000 / num_dims)) if batched else 1
 
 	# 1. Fetch a list of perturbed indices - Exhaustive search over the dimension space
 	perturbed_idx_list = fetch_perturbed_idx(perturbations, num_dims)

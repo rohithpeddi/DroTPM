@@ -449,10 +449,10 @@ if __name__ == '__main__':
 					"Logging values for {}, perturbation {}, train attack type {}".format(dataset_name, perturbation,
 																						  train_attack_type))
 				if perturbation != 0:
-					test_standard_spn_discrete(run_id=102, specific_datasets=dataset_name, is_adv=True,
+					test_standard_spn_discrete(run_id=224, specific_datasets=dataset_name, is_adv=True,
 											   train_attack_type=train_attack_type, perturbations=perturbation)
 				elif perturbation == 0:
-					test_standard_spn_discrete(run_id=102, specific_datasets=dataset_name, is_adv=False,
+					test_standard_spn_discrete(run_id=224, specific_datasets=dataset_name, is_adv=False,
 											   train_attack_type=train_attack_type, perturbations=perturbation)
 
 		dataset_wandb_tables = fetch_wandb_table(dataset_name)
