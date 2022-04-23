@@ -415,10 +415,10 @@ def test_standard_spn_discrete(run_id, specific_datasets=None, is_adv=False, tra
 								   av_mean_cll_dict[5][evidence_percentage], av_std_cll_dict[5][evidence_percentage],
 								   w1_mean_cll, w1_std_cll, w3_mean_cll, w3_std_cll, w5_mean_cll, w5_std_cll)
 
-				cll_table.add_data(train_attack_type, perturbations, standard_mean_cll, standard_std_cll,
-								   ls1_mean_cll, ls1_std_cll, ls3_mean_cll, ls3_std_cll, ls5_mean_cll, ls5_std_cll,
-								   rls1_mean_cll, rls1_std_cll, rls3_mean_cll, rls3_std_cll, rls5_mean_cll,
-								   rls5_std_cll, w1_mean_cll, w1_std_cll, w3_mean_cll, w3_std_cll, w5_mean_cll, w5_std_cll)
+				# cll_table.add_data(train_attack_type, perturbations, standard_mean_cll, standard_std_cll,
+				# 				   ls1_mean_cll, ls1_std_cll, ls3_mean_cll, ls3_std_cll, ls5_mean_cll, ls5_std_cll,
+				# 				   rls1_mean_cll, rls1_std_cll, rls3_mean_cll, rls3_std_cll, rls5_mean_cll,
+				# 				   rls5_std_cll, w1_mean_cll, w1_std_cll, w3_mean_cll, w3_std_cll, w5_mean_cll, w5_std_cll)
 
 				# cll_table.add_data(train_attack_type, perturbations, standard_mean_cll, standard_std_cll,
 				# 				   rls1_mean_cll, rls1_std_cll, rls3_mean_cll, rls3_std_cll, rls5_mean_cll, rls5_std_cll)
