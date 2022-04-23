@@ -3,6 +3,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+data/
+run*
+
+data/
+dump/run_0/conditional_samples/
+dump/run_0/samples/
+checkpoints/
+dump/run_0/results/
+.idea/
+
 # C extensions
 *.so
 
