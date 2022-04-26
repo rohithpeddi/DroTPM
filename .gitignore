@@ -12,6 +12,8 @@ dump/run_0/samples/
 checkpoints/
 dump/run_0/results/
 .idea/
+structure/
+checkpoint.pt
 
 # C extensions
 *.so
