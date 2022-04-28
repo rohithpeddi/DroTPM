@@ -140,8 +140,7 @@ RATSPN_DEBD_RESULTS_DIRECTORY = "results/ratspn/DEBD"
 RATSPN_BINARY_MNIST_RESULTS_DIRECTORY = "results/ratspn/binary_mnist"
 RATSPN_MNIST_RESULTS_DIRECTORY = "results/ratspn/mnist"
 
-DEBD_DATASETS = ['kdd', 'plants', 'jester', 'baudio',
-						    'bnetflix', 'accidents', 'tretail', 'pumsb_star', 'dna', 'kosarek', 'msweb', 'book', 'tmovie', 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
+DEBD_DATASETS = ['msweb', 'book', 'tmovie', 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
 
 # DEBD_DATASETS = ['nltcs', 'msnbc', 'kdd', 'plants', 'jester', 'baudio',
 # 						    'bnetflix', 'accidents', 'tretail', 'pumsb_star', 'dna', 'kosarek', 'msweb', 'book', 'tmovie', 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
