@@ -68,9 +68,12 @@ def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, com
 	perturbed_idx_list = fetch_perturbed_idx_appended(perturbations, num_dims, min_perturbed_idx)
 	for i in range(perturbations):
 		ll_scores = []
+		counter = 1
 		for perturbed_idx in perturbed_idx_list:
+			print("Running {}/{}".format(counter, len(perturbed_idx_list)))
 			ll_score = generate_log_likelihood_score(dataset_name, einet, inputs, perturbed_idx, batch_size)
 			ll_scores.append(ll_score)
+			counter = counter + 1
 		min_idx = torch.argmin(torch.tensor(ll_scores))
 		min_perturbed_idx = perturbed_idx_list[min_idx]
 		perturbed_idx_list = fetch_perturbed_idx_appended(perturbations, num_dims, min_perturbed_idx)
