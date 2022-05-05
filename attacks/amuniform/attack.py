@@ -60,9 +60,9 @@ def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, com
 	original_N, num_dims = inputs.shape
 
 	if dataset_name in SMALL_VARIABLE_DATASETS:
-		batch_size = max(1, int(20000 / num_dims)) if batched else 1
+		batch_size = max(1, int(12000 / num_dims)) if batched else 1
 	else:
-		batch_size = max(1, int(3000 / num_dims)) if batched else 1
+		batch_size = max(1, int(1800 / num_dims)) if batched else 1
 
 	min_perturbed_idx = []
 	perturbed_idx_list = fetch_perturbed_idx_appended(perturbations, num_dims, min_perturbed_idx)
