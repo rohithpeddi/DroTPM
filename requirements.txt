@@ -8,3 +8,7 @@ scikit-learn
 matplotlib
 networkx
 pydot
+wandb
+pandas
+seaborn==0.10.1
+filelock==3.0.12

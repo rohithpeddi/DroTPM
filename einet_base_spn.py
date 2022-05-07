@@ -207,7 +207,8 @@ def evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=0):
 	return train_ll / train_x.shape[0], valid_ll / valid_x.shape[0], test_ll / test_x.shape[0]
 
 
-def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attack_type=CLEAN, perturbations=None):
+def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attack_type=CLEAN, perturbations=None,
+			   specific_filename=None):
 	RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id), EINET_MODEL_DIRECTORY)
 
 	if attack_type in [AMBIGUITY_SET_UNIFORM, NEURAL_NET, LOCAL_SEARCH, RESTRICTED_LOCAL_SEARCH]:
@@ -219,6 +220,8 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 			sub_directory_name = LOCAL_RESTRICTED_SEARCH_ATTACK_MODEL_SUB_DIRECTORY
 		elif attack_type == AMBIGUITY_SET_UNIFORM:
 			sub_directory_name = AMBIGUITY_SET_UNIFORM_ATTACK_MODEL_SUB_DIRECTORY
+		elif attack_type == WASSERSTEIN_RANDOM_SAMPLES:
+			sub_directory_name = WASSERSTEIN_DISTANCE_RANDOM_SAMPLES_ATTACK_MODEL_SUB_DIRECTORY
 		ATTACK_SUB_DIRECTORY = os.path.join(RUN_MODEL_DIRECTORY, sub_directory_name)
 		ATTACK_MODEL_DIRECTORY = os.path.join(ATTACK_SUB_DIRECTORY, "{}".format(perturbations))
 	else:
@@ -228,10 +231,17 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 
 	file_name = None
 	if is_adv:
-		file_name = os.path.join(ATTACK_MODEL_DIRECTORY,
-								 "{}_{}_{}_{}_{}_adv.mdl".format(structure, dataset_name,
-																 einet_args[NUM_SUMS],
-																 einet_args[NUM_INPUT_DISTRIBUTIONS],
+		if attack_type == WASSERSTEIN_RANDOM_SAMPLES:
+			file_name = os.path.join(ATTACK_MODEL_DIRECTORY,
+									 "{}_{}_{}_{}_{}_adv.mdl".format(structure, specific_filename,
+																	 einet_args[NUM_SUMS],
+																	 einet_args[NUM_INPUT_DISTRIBUTIONS],
+																	 einet_args[NUM_REPETITIONS]))
+		else:
+			file_name = os.path.join(ATTACK_MODEL_DIRECTORY,
+									 "{}_{}_{}_{}_{}_adv.mdl".format(structure, dataset_name,
+																	 einet_args[NUM_SUMS],
+																	 einet_args[NUM_INPUT_DISTRIBUTIONS],
 																 einet_args[NUM_REPETITIONS]))
 	else:
 		file_name = os.path.join(ATTACK_MODEL_DIRECTORY,

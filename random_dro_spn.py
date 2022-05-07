@@ -408,6 +408,9 @@ def random_dro_spn(run_id, specific_datasets=None, perturbations=None, device=No
 								   test_labels, ll_table, cll_tables, "random_dro_samples_{}".format(samples),
 								   perturbations)
 
+				SPN.save_model(run_id, random_dro_einet, dataset_name, structure, einet_args, True, WASSERSTEIN_RANDOM_SAMPLES,
+							   perturbations, specific_filename="{}_{}_{}".format(dataset_name, perturbations, samples))
+
 
 if __name__ == '__main__':
 
