@@ -5,14 +5,6 @@ from itertools import combinations
 
 from constants import *
 
-############################################################################
-
-
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-
-############################################################################
-
 
 def fetch_perturbed_idx(perturbations, num_dims):
 	indices = list(range(0, num_dims))
@@ -70,7 +62,8 @@ def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, com
 		ll_scores = []
 		counter = 1
 		for perturbed_idx in perturbed_idx_list:
-			print("Running {}/{}".format(counter, len(perturbed_idx_list)))
+			if counter % 100 == 0:
+				print("Running {}/{}".format(counter, len(perturbed_idx_list)))
 			ll_score = generate_log_likelihood_score(dataset_name, einet, inputs, perturbed_idx, batch_size)
 			ll_scores.append(ll_score)
 			counter = counter + 1

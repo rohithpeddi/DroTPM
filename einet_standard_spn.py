@@ -125,7 +125,7 @@ def test_standard_spn_discrete(run_id, specific_datasets=None, is_adv=False, tra
 		evaluation_message("Dataset : {}".format(dataset_name))
 		dataset_results = dict()
 
-		train_x, valid_x, test_x, train_labels, valid_labels, test_labels = SPN.load_dataset(dataset_name)
+		train_x, valid_x, test_x, train_labels, valid_labels, test_labels = SPN.load_dataset(dataset_name, device)
 
 		exponential_family, exponential_family_args, structures = None, None, None
 		if dataset_name in DISCRETE_DATASETS:
@@ -165,27 +165,27 @@ def test_standard_spn_discrete(run_id, specific_datasets=None, is_adv=False, tra
 
 			evaluation_message("Loading Einet")
 
-			trained_clean_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args)
+			trained_clean_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args, device)
 
 			if trained_clean_einet is None:
-				clean_einet = SPN.load_einet(run_id, structure, dataset_name, einet_args, graph)
+				clean_einet = SPN.load_einet(run_id, structure, dataset_name, einet_args, graph, device)
 				evaluation_message("Training clean einet")
 				trained_clean_einet = SPN.train_einet(run_id, structure, dataset_name, clean_einet, train_labels,
-													  train_x, valid_x, test_x, einet_args, perturbations, CLEAN,
-													  batch_size=einet_args[BATCH_SIZE], is_adv=False)
+													  train_x, valid_x, test_x, einet_args, perturbations, device,
+													  CLEAN, batch_size=einet_args[BATCH_SIZE], is_adv=False)
 
-			adv_einet = SPN.load_einet(run_id, structure, dataset_name, einet_args, graph)
+			adv_einet = SPN.load_einet(run_id, structure, dataset_name, einet_args, graph, device)
 			trained_adv_einet = trained_clean_einet
 			if is_adv:
 				print("Considering adv einet")
-				trained_adv_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args,
+				trained_adv_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args, device,
 															  train_attack_type, perturbations)
 				if trained_adv_einet is None:
 					evaluation_message("Training adversarial einet with attack type {}".format(train_attack_type))
 					trained_adv_einet = SPN.train_einet(run_id, structure, dataset_name, adv_einet, train_labels,
-														train_x,
-														valid_x, test_x, einet_args, perturbations, train_attack_type,
-														batch_size=einet_args[BATCH_SIZE], is_adv=True)
+														train_x, valid_x, test_x, einet_args, perturbations, device,
+														train_attack_type, batch_size=einet_args[BATCH_SIZE],
+														is_adv=True)
 				else:
 					evaluation_message("Loaded pretrained einet for the configuration")
 
@@ -201,15 +201,15 @@ def test_standard_spn_discrete(run_id, specific_datasets=None, is_adv=False, tra
 			# ------  AVERAGE ATTACK AREA ------
 
 			av_mean_ll_dict, av_std_ll_dict = SPN.fetch_average_likelihoods_for_data(dataset_name, trained_adv_einet,
-																					 test_x)
+																					 device, test_x)
 
 			def attack_test_einet(dataset_name, trained_adv_einet, trained_clean_einet, train_x, test_x, test_labels,
 								  perturbations, attack_type, batch_size, is_adv):
 				mean_ll, std_ll, attack_test_x = SPN.test_einet(dataset_name, trained_adv_einet, trained_clean_einet,
 																train_x, test_x, test_labels,
-																perturbations=perturbations,
-																attack_type=attack_type,
-																batch_size=batch_size, is_adv=is_adv)
+																perturbations=perturbations, device=device,
+																attack_type=attack_type, batch_size=batch_size,
+																is_adv=is_adv)
 				evaluation_message("{} Mean LL : {}, Std LL : {}".format(attack_type, mean_ll, std_ll))
 
 				dataset_distribution_results["{} Mean LL".format(attack_type)] = mean_ll
@@ -330,7 +330,7 @@ def test_standard_spn_discrete(run_id, specific_datasets=None, is_adv=False, tra
 			# 8. Average attack dictionary
 			av_mean_cll_dict, av_std_cll_dict = SPN.fetch_average_conditional_likelihoods_for_data(dataset_name,
 																								   trained_adv_einet,
-																								   test_x)
+																								   device, test_x)
 
 			for evidence_percentage in EVIDENCE_PERCENTAGES:
 				cll_table = cll_tables[evidence_percentage]

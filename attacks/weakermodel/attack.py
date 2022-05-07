@@ -7,14 +7,6 @@ from torch.utils.data import TensorDataset, DataLoader
 
 from constants import *
 
-############################################################################
-
-
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-
-############################################################################
-
 
 def generate_adversarial_sample_batched(clts_bag, inputs, perturbations):
 	batch_size, num_dims = inputs.shape
@@ -36,7 +28,8 @@ def generate_adversarial_sample_batched(clts_bag, inputs, perturbations):
 
 		arg_min_idx = []
 		for batch_idx in range(batch_size):
-			batch_input_min_idx = np.argmin(lls_mean[batch_idx * (num_dims+1):min((batch_idx + 1) * (num_dims + 1), lls_mean.shape[0])])
+			batch_input_min_idx = np.argmin(
+				lls_mean[batch_idx * (num_dims + 1):min((batch_idx + 1) * (num_dims + 1), lls_mean.shape[0])])
 			arg_min_idx.append(batch_idx * (num_dims + 1) + batch_input_min_idx)
 		iteration_inputs = perturbed_set[arg_min_idx, :]
 
@@ -68,8 +61,8 @@ def fetch_bags_of_clts(train_x):
 	return clt_bag
 
 
-def generate_adv_dataset(einet, dataset_name, test_data, test_labels, perturbations, combine=False, batched=False,
-						 train_data=None):
+def generate_adv_dataset(einet, dataset_name, test_data, test_labels, perturbations, device, combine=False,
+						 batched=False, train_data=None):
 	adv_inputs = test_data.detach().clone()
 
 	batch_size = int(10000 / adv_inputs.shape[1]) if batched else 1

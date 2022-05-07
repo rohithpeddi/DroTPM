@@ -5,16 +5,8 @@ from tqdm import tqdm
 
 from constants import *
 
-############################################################################
 
-
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-
-############################################################################
-
-
-def generate_adversarial_sample_batched(einet, inputs, perturbations):
+def generate_adversarial_sample_batched(einet, inputs, perturbations, device):
 	batch_size, num_dims = inputs.shape
 	iteration_inputs = inputs.clone().detach()
 
@@ -69,7 +61,8 @@ def generate_adversarial_sample(einet, inputs, perturbations):
 	return adv_sample
 
 
-def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, combine=False, batched=False, train_data=None):
+def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, device, combine=False, batched=False,
+						 train_data=None):
 	adv_inputs = inputs.detach().clone()
 	original_N, num_dims = inputs.shape
 
@@ -88,7 +81,7 @@ def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, com
 	perturbed_inputs = []
 	for inputs in data_loader:
 		if batched:
-			adv_sample = generate_adversarial_sample_batched(einet, inputs[0], perturbations)
+			adv_sample = generate_adversarial_sample_batched(einet, inputs[0], perturbations, device)
 		else:
 			adv_sample = generate_adversarial_sample(einet, inputs[0], perturbations)
 		perturbed_inputs.append(adv_sample)

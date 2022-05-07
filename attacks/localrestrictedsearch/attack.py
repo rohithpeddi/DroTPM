@@ -5,13 +5,6 @@ from tqdm import tqdm
 
 from constants import *
 
-############################################################################
-
-
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-
-############################################################################
 
 
 # def generate_adversarial_sample_batched(einet, inputs, perturbations, k=10):
@@ -56,7 +49,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # 	return adv_sample_batched
 
 
-def generate_adversarial_sample_batched(einet, inputs, perturbations, k=10):
+def generate_adversarial_sample_batched(einet, inputs, perturbations, device, k=10):
 	batch_size, num_dims = inputs.shape
 	iteration_inputs = inputs.clone().detach()
 
@@ -105,7 +98,8 @@ def generate_adversarial_sample_batched(einet, inputs, perturbations, k=10):
 	return adv_sample_batched
 
 
-def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, combine=False, batched=False, train_data=None):
+def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, device, combine=False, batched=False,
+						 train_data=None):
 	adv_inputs = inputs.detach().clone()
 	original_N, num_dims = inputs.shape
 
@@ -125,7 +119,7 @@ def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, com
 	perturbed_inputs = []
 	for inputs in data_loader:
 		if batched:
-			adv_sample = generate_adversarial_sample_batched(einet, inputs[0], perturbations, k=k)
+			adv_sample = generate_adversarial_sample_batched(einet, inputs[0], perturbations, device, k=k)
 		else:
 			AssertionError("Not implemented error")
 		perturbed_inputs.append(adv_sample)

@@ -359,9 +359,9 @@ def maybe_download_all_data():
 	# print('fashion MNIST')
 	# maybe_download_fashion_mnist()
 	#
-	# print()
-	# print('20 binary datasets')
-	# maybe_download_debd()
+	print()
+	print('20 binary datasets')
+	maybe_download_debd()
 	#
 	# print()
 	# print('SVHN')
@@ -390,9 +390,9 @@ def maybe_download_all_data():
 	# maybe_download(DATA_WINE, 'https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/',
 	# 			   'winequality-white.csv')
 
-	print('')
-	print("Check for CIFAR-10")
-	maybe_download_cifar_10()
+	# print('')
+	# print("Check for CIFAR-10")
+	# maybe_download_cifar_10()
 
 
 ############################################################################################################################

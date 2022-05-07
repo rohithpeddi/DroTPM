@@ -140,10 +140,11 @@ RATSPN_DEBD_RESULTS_DIRECTORY = "results/ratspn/DEBD"
 RATSPN_BINARY_MNIST_RESULTS_DIRECTORY = "results/ratspn/binary_mnist"
 RATSPN_MNIST_RESULTS_DIRECTORY = "results/ratspn/mnist"
 
-DEBD_DATASETS = ['cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
+# DEBD_DATASETS = ['cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
 
-# DEBD_DATASETS = ['nltcs', 'msnbc', 'kdd', 'plants', 'jester', 'baudio',
-# 						    'bnetflix', 'accidents', 'tretail', 'pumsb_star', 'dna', 'kosarek', 'msweb', 'book', 'tmovie', 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
+DEBD_DATASETS = ['nltcs', 'msnbc', 'kdd', 'plants', 'jester', 'baudio',
+				 'bnetflix', 'accidents', 'tretail', 'pumsb_star', 'dna', 'kosarek', 'msweb', 'book', 'tmovie',
+				 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
 
 SMALL_VARIABLE_DATASETS = ['nltcs', 'msnbc', 'kdd', 'plants', 'baudio',
 						   'jester', 'bnetflix', 'accidents', 'tretail', 'pumsb_star']
@@ -231,7 +232,8 @@ DEFAULT_DEPTH = 3
 # NUM_INPUT_DISTRIBUTIONS_LIST = [10, 20, 30, 40, 50]
 NUM_INPUT_DISTRIBUTIONS_LIST = [10]
 PERTURBATIONS = [0, 1, 3, 5]
-CONTINUOUS_PERTURBATIONS = [ 1./255, 3./255, 5./255, 8./255]
+DRO_PERTURBATIONS = [1, 3, 5]
+CONTINUOUS_PERTURBATIONS = [1. / 255, 3. / 255, 5. / 255, 8. / 255]
 DEFAULT_AVERAGE_REPEAT_SIZE = 100
 
 NEURAL_NETWORK_ATTACK_MODEL_SUB_DIRECTORY = "AMNN"
@@ -262,7 +264,6 @@ DEEPFOOL = "deepfool"
 SPARSEFOOL = "sparsefool"
 FAB = "fab"
 ONE_PIXEL = "one_pixel"
-
 
 DEBD_display_name = {
 	'accidents': 'accidents',

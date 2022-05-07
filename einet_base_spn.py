@@ -18,12 +18,6 @@ from deeprob.torch.callbacks import EarlyStopping
 from utils import mkdir_p
 from utils import predict_labels_mnist, save_image_stack
 
-############################################################################
-
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-
-############################################################################
 
 def generate_exponential_family_args(exponential_family, dataset_name):
 	exponential_family_args = None
@@ -39,7 +33,7 @@ def generate_exponential_family_args(exponential_family, dataset_name):
 	return exponential_family_args
 
 
-def load_dataset(dataset_name):
+def load_dataset(dataset_name, device):
 	train_x, train_labels, test_x, test_labels, valid_x, valid_labels = None, None, None, None, None, None
 	if dataset_name == FASHION_MNIST:
 		train_x, train_labels, test_x, test_labels = datasets.load_fashion_mnist()
@@ -123,7 +117,7 @@ def load_structure(run_id, structure, dataset_name, structure_args):
 	return graph
 
 
-def load_einet(run_id, structure, dataset_name, einet_args, graph):
+def load_einet(run_id, structure, dataset_name, einet_args, graph, device):
 	args = EinsumNetwork.Args(
 		num_var=einet_args[NUM_VAR],
 		num_dims=1,
@@ -141,7 +135,7 @@ def load_einet(run_id, structure, dataset_name, einet_args, graph):
 	return einet
 
 
-def load_pretrained_einet(run_id, structure, dataset_name, einet_args, attack_type=None, perturbations=None):
+def load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, attack_type=None, perturbations=None):
 	einet = None
 
 	if attack_type is None or attack_type == CLEAN:
@@ -250,7 +244,7 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 
 
 def train_einet(run_id, structure, dataset_name, einet, train_labels, train_x, valid_x, test_x, einet_args,
-				perturbations, attack_type=CLEAN, batch_size=DEFAULT_TRAIN_BATCH_SIZE, is_adv=False):
+				perturbations, device, attack_type=CLEAN, batch_size=DEFAULT_TRAIN_BATCH_SIZE, is_adv=False):
 	patience = 1 if is_adv else DEFAULT_EINET_PATIENCE
 
 	early_stopping = EarlyStopping(einet, patience=patience, filepath=EARLY_STOPPING_FILE,
@@ -271,7 +265,7 @@ def train_einet(run_id, structure, dataset_name, einet, train_labels, train_x, v
 		if is_adv:
 			print("Fetching adversarial data, training epoch {}".format(epoch_count))
 			train_dataset = fetch_adv_data(einet, dataset_name, train_x, train_x, train_labels, perturbations,
-										   attack_type, TRAIN_DATASET, combine=False)
+										   attack_type, device, TRAIN_DATASET, combine=False)
 
 	save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attack_type, perturbations)
 
@@ -289,11 +283,10 @@ def fetch_attack_method(attack_type):
 		return am_uniform
 
 
-def fetch_adv_data(einet, dataset_name, train_data, test_data, test_labels, perturbations, attack_type, file_name=None,
-				   combine=False):
+def fetch_adv_data(einet, dataset_name, train_data, test_data, test_labels, perturbations, attack_type, device,
+				   file_name=None, combine=False):
 	attack = fetch_attack_method(attack_type)
-	adv_data = attack.generate_adv_dataset(einet, dataset_name, test_data, test_labels, perturbations, combine=combine,
-										   batched=True, train_data=train_data)
+	adv_data = attack.generate_adv_dataset(einet, dataset_name, test_data, test_labels, perturbations, device, combine=combine, batched=True, train_data=train_data)
 
 	print("Fetched adversarial examples : {}/{}".format(adv_data.shape[0], test_data.shape[0]))
 
@@ -308,7 +301,7 @@ def get_stats(likelihoods):
 	return mean_ll, stddev_ll
 
 
-def fetch_average_likelihoods_for_data(dataset_name, trained_einet, test_x,
+def fetch_average_likelihoods_for_data(dataset_name, trained_einet, device, test_x,
 									   average_repeat_size=DEFAULT_AVERAGE_REPEAT_SIZE):
 	test_dataset = TensorDataset(test_x)
 	test_loader = DataLoader(test_dataset, shuffle=False, batch_size=1)
@@ -369,12 +362,12 @@ def fetch_average_likelihoods_for_data(dataset_name, trained_einet, test_x,
 	return av_mean_dict, av_std_dict
 
 
-def test_einet(dataset_name, trained_einet, data_einet, train_x, test_x, test_labels, perturbations, attack_type=None,
-			   batch_size=1, is_adv=False):
+def test_einet(dataset_name, trained_einet, data_einet, train_x, test_x, test_labels, perturbations, device,
+			   attack_type=None, batch_size=1, is_adv=False):
 	trained_einet.eval()
 	if is_adv:
 		test_x = fetch_adv_data(data_einet, dataset_name, train_x, test_x, test_labels, perturbations, attack_type,
-								TEST_DATASET, combine=False).tensors[0]
+								device, TEST_DATASET, combine=False).tensors[0]
 
 	test_lls = EinsumNetwork.fetch_likelihoods_for_data(trained_einet, test_x, batch_size=batch_size)
 
@@ -382,7 +375,7 @@ def test_einet(dataset_name, trained_einet, data_einet, train_x, test_x, test_la
 	return mean_ll, stddev_ll, test_x
 
 
-def fetch_average_conditional_likelihoods_for_data(dataset_name, trained_einet, test_x,
+def fetch_average_conditional_likelihoods_for_data(dataset_name, trained_einet, device, test_x,
 												   average_repeat_size=DEFAULT_AVERAGE_REPEAT_SIZE):
 	test_dataset = TensorDataset(test_x)
 	test_loader = DataLoader(test_dataset, shuffle=False, batch_size=1)
@@ -470,7 +463,7 @@ def test_conditional_einet(test_attack_type, perturbations, dataset_name, einet,
 	return mean_ll, stddev_ll
 
 
-def generate_conditional_samples(einet, structure, dataset_name, einet_args, test_x, attack_type):
+def generate_conditional_samples(einet, structure, dataset_name, einet_args, test_x, attack_type, device):
 	einet.eval()
 	DATASET_CONDITIONAL_SAMPLES_DIR = os.path.join(CONDITIONAL_SAMPLES_DIRECTORY, dataset_name)
 	mkdir_p(DATASET_CONDITIONAL_SAMPLES_DIR)
