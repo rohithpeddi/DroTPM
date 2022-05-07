@@ -384,9 +384,9 @@ def random_dro_spn(run_id, specific_datasets=None, perturbations=None, device=No
 				trained_clean_einet = SPN.train_einet(run_id, structure, dataset_name, clean_einet, train_labels,
 													  train_x, valid_x, test_x, einet_args, perturbations, device,
 													  CLEAN, batch_size=einet_args[BATCH_SIZE], is_adv=False)
-			# if perturbations == 1:
-			# 	test_trained_einet(dataset_name, trained_clean_einet, trained_clean_einet, train_x, test_x, test_labels,
-			# 					   ll_table, cll_tables, "clean", 0)
+			if perturbations == 1:
+				test_trained_einet(dataset_name, trained_clean_einet, trained_clean_einet, train_x, test_x, test_labels,
+								   ll_table, cll_tables, "clean", 0)
 
 			for samples in [10, 20, 30, 40, 50]:
 				perturbed_training_datasets = []
