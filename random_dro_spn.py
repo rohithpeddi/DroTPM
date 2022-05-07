@@ -311,6 +311,7 @@ def train_random_dro_from_perturbed_datasets(run_id, dataset_name, perturbed_tra
 
 	train_dataset = TensorDataset(train_x)
 	for epoch_count in range(MAX_NUM_EPOCHS):
+		einet.train()
 		train_dataloader = DataLoader(train_dataset, einet_args[BATCH_SIZE], shuffle=True)
 		SPN.epoch_einet_train(train_dataloader, einet, epoch_count, dataset_name, weight=1)
 		train_ll, valid_ll, test_ll = SPN.evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=epoch_count)
@@ -320,6 +321,8 @@ def train_random_dro_from_perturbed_datasets(run_id, dataset_name, perturbed_tra
 				print("Early Stopping... {}".format(early_stopping))
 				break
 		print("Fetching adversarial data, training epoch {}".format(epoch_count))
+
+		einet.eval()
 		perturbed_likelihoods = []
 		for i in range(len(perturbed_training_datasets)):
 			perturbed_dataset = perturbed_training_datasets[i]
@@ -398,9 +401,13 @@ def random_dro_spn(run_id, specific_datasets=None, perturbations=None, device=No
 
 				# Approach-1
 				# Use the raw perturbed training samples in inner minimization problem
-				random_dro_einet = SPN.load_einet(run_id, structure, dataset_name, einet_args, graph, device)
-				trained_random_dro_einet = train_random_dro_from_perturbed_datasets(run_id, dataset_name,
-																					perturbed_training_datasets,
+				specific_filename = "{}_{}_{}".format(dataset_name, perturbations, samples)
+				trained_random_dro_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, specific_filename=specific_filename)
+
+				if trained_random_dro_einet is None:
+					random_dro_einet = SPN.load_einet(run_id, structure, dataset_name, einet_args, graph, device)
+					trained_random_dro_einet = train_random_dro_from_perturbed_datasets(run_id, dataset_name,
+																						perturbed_training_datasets,
 																					random_dro_einet, train_x,
 																					valid_x, test_x, einet_args)
 
@@ -408,8 +415,8 @@ def random_dro_spn(run_id, specific_datasets=None, perturbations=None, device=No
 								   test_labels, ll_table, cll_tables, "random_dro_samples_{}".format(samples),
 								   perturbations)
 
-				SPN.save_model(run_id, random_dro_einet, dataset_name, structure, einet_args, True, WASSERSTEIN_RANDOM_SAMPLES,
-							   perturbations, specific_filename="{}_{}_{}".format(dataset_name, perturbations, samples))
+				SPN.save_model(run_id, trained_random_dro_einet, dataset_name, structure, einet_args, True, WASSERSTEIN_RANDOM_SAMPLES,
+							   perturbations, specific_filename=specific_filename)
 
 
 if __name__ == '__main__':

@@ -135,7 +135,8 @@ def load_einet(run_id, structure, dataset_name, einet_args, graph, device):
 	return einet
 
 
-def load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, attack_type=None, perturbations=None):
+def load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, attack_type=None, perturbations=None,
+						  specific_filename=None):
 	einet = None
 
 	if attack_type is None or attack_type == CLEAN:
@@ -161,10 +162,19 @@ def load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, a
 		elif attack_type == AMBIGUITY_SET_UNIFORM:
 			RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id),
 											   AMU_EINET_MODEL_DIRECTORY + "/{}".format(perturbations))
+		elif attack_type == WASSERSTEIN_RANDOM_SAMPLES:
+			RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id),
+											   WASSERSTEIN_RANDOM_SAMPLES_ATTACK_MODEL_SUB_DIRECTORY + "/{}".format(perturbations))
 
 		mkdir_p(RUN_MODEL_DIRECTORY)
 
-		file_name = os.path.join(RUN_MODEL_DIRECTORY,
+		if attack_type == WASSERSTEIN_RANDOM_SAMPLES:
+			file_name = os.path.join(RUN_MODEL_DIRECTORY,
+									 "{}_{}_{}_{}_{}_adv.mdl".format(structure, specific_filename, einet_args[NUM_SUMS],
+																	 einet_args[NUM_INPUT_DISTRIBUTIONS],
+																	 einet_args[NUM_REPETITIONS]))
+		else:
+			file_name = os.path.join(RUN_MODEL_DIRECTORY,
 								 "{}_{}_{}_{}_{}_adv.mdl".format(structure, dataset_name, einet_args[NUM_SUMS],
 																 einet_args[NUM_INPUT_DISTRIBUTIONS],
 																 einet_args[NUM_REPETITIONS]))
@@ -221,7 +231,7 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 		elif attack_type == AMBIGUITY_SET_UNIFORM:
 			sub_directory_name = AMBIGUITY_SET_UNIFORM_ATTACK_MODEL_SUB_DIRECTORY
 		elif attack_type == WASSERSTEIN_RANDOM_SAMPLES:
-			sub_directory_name = WASSERSTEIN_DISTANCE_RANDOM_SAMPLES_ATTACK_MODEL_SUB_DIRECTORY
+			sub_directory_name = WASSERSTEIN_RANDOM_SAMPLES_ATTACK_MODEL_SUB_DIRECTORY
 		ATTACK_SUB_DIRECTORY = os.path.join(RUN_MODEL_DIRECTORY, sub_directory_name)
 		ATTACK_MODEL_DIRECTORY = os.path.join(ATTACK_SUB_DIRECTORY, "{}".format(perturbations))
 	else:
