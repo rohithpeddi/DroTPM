@@ -402,9 +402,12 @@ def random_dro_spn(run_id, specific_datasets=None, perturbations=None, device=No
 				# Approach-1
 				# Use the raw perturbed training samples in inner minimization problem
 				specific_filename = "{}_{}_{}".format(dataset_name, perturbations, samples)
-				trained_random_dro_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, specific_filename=specific_filename)
+
+				print(specific_filename)
+				trained_random_dro_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, attack_type=WASSERSTEIN_RANDOM_SAMPLES, perturbations=perturbations, specific_filename=specific_filename)
 
 				if trained_random_dro_einet is None:
+					print("Could not find trained models")
 					random_dro_einet = SPN.load_einet(run_id, structure, dataset_name, einet_args, graph, device)
 					trained_random_dro_einet = train_random_dro_from_perturbed_datasets(run_id, dataset_name,
 																						perturbed_training_datasets,

@@ -164,7 +164,7 @@ def load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, a
 											   AMU_EINET_MODEL_DIRECTORY + "/{}".format(perturbations))
 		elif attack_type == WASSERSTEIN_RANDOM_SAMPLES:
 			RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id),
-											   WASSERSTEIN_RANDOM_SAMPLES_ATTACK_MODEL_SUB_DIRECTORY + "/{}".format(perturbations))
+											   WASSERSTEIN_SAMPLES_EINET_MODEL_DIRECTORY + "/{}".format(perturbations))
 
 		mkdir_p(RUN_MODEL_DIRECTORY)
 
