@@ -3,12 +3,13 @@ import random
 
 import numpy as np
 import torch
+from torch import optim
 from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
 
 import datasets
-from EinsumNetwork import EinsumNetwork, Graph
-from EinsumNetwork.ExponentialFamilyArray import NormalArray, CategoricalArray, BinomialArray
+from EinsumNetworkSGD import EinsumNetwork, Graph
+from EinsumNetworkSGD.ExponentialFamilyArray import NormalArray, CategoricalArray, BinomialArray
 from attacks.localrestrictedsearch import attack as local_restricted_search_attack
 from attacks.localsearch import attack as local_search_attack
 from attacks.weakermodel import attack as weaker_attack
@@ -22,7 +23,10 @@ from utils import predict_labels_mnist, save_image_stack
 def generate_exponential_family_args(exponential_family, dataset_name):
 	exponential_family_args = None
 	if exponential_family == BinomialArray:
-		exponential_family_args = {'N': 255}
+		if dataset_name in DEBD_DATASETS:
+			exponential_family_args = {'N': 1}
+		else:
+			exponential_family_args = {'N': 255}
 	elif exponential_family == CategoricalArray:
 		if dataset_name == BINARY_MNIST or dataset_name in DEBD_DATASETS:
 			exponential_family_args = {'K': 2}
@@ -121,14 +125,11 @@ def load_einet(run_id, structure, dataset_name, einet_args, graph, device):
 	args = EinsumNetwork.Args(
 		num_var=einet_args[NUM_VAR],
 		num_dims=1,
-		use_em=einet_args[USE_EM],
 		num_classes=einet_args[NUM_CLASSES],
 		num_sums=einet_args[NUM_SUMS],
 		num_input_distributions=einet_args[NUM_INPUT_DISTRIBUTIONS],
 		exponential_family=einet_args[EXPONENTIAL_FAMILY],
-		exponential_family_args=einet_args[EXPONENTIAL_FAMILY_ARGS],
-		online_em_frequency=einet_args[ONLINE_EM_FREQUENCY],
-		online_em_stepsize=einet_args[ONLINE_EM_STEPSIZE])
+		exponential_family_args=einet_args[EXPONENTIAL_FAMILY_ARGS])
 	einet = EinsumNetwork.EinsumNetwork(graph, args)
 	einet.initialize()
 	einet.to(device)
@@ -162,6 +163,9 @@ def load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, a
 		elif attack_type == AMBIGUITY_SET_UNIFORM:
 			RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id),
 											   AMU_EINET_MODEL_DIRECTORY + "/{}".format(perturbations))
+		elif attack_type == WASSERSTEIN_META:
+			RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id),
+											   WASSERSTEIN_META_EINET_MODEL_DIRECTORY + "/{}".format(perturbations))
 		elif attack_type == WASSERSTEIN_RANDOM_SAMPLES:
 			RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id),
 											   WASSERSTEIN_SAMPLES_EINET_MODEL_DIRECTORY + "/{}".format(perturbations))
@@ -175,9 +179,9 @@ def load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, a
 																	 einet_args[NUM_REPETITIONS]))
 		else:
 			file_name = os.path.join(RUN_MODEL_DIRECTORY,
-								 "{}_{}_{}_{}_{}_adv.mdl".format(structure, dataset_name, einet_args[NUM_SUMS],
-																 einet_args[NUM_INPUT_DISTRIBUTIONS],
-																 einet_args[NUM_REPETITIONS]))
+									 "{}_{}_{}_{}_{}_adv.mdl".format(structure, dataset_name, einet_args[NUM_SUMS],
+																	 einet_args[NUM_INPUT_DISTRIBUTIONS],
+																	 einet_args[NUM_REPETITIONS]))
 
 	if os.path.exists(file_name):
 		einet = torch.load(file_name).to(device)
@@ -187,7 +191,7 @@ def load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, a
 		return None
 
 
-def epoch_einet_train(train_dataloader, einet, epoch, dataset_name, weight=1):
+def epoch_einet_train(train_dataloader, einet, epoch, dataset_name, weight=1, optimizer=None):
 	train_dataloader = tqdm(
 		train_dataloader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
 		desc='Training epoch : {}, for dataset : {}'.format(epoch, dataset_name),
@@ -195,15 +199,42 @@ def epoch_einet_train(train_dataloader, einet, epoch, dataset_name, weight=1):
 	)
 	einet.train()
 	for inputs in train_dataloader:
+		optimizer.zero_grad()
 		outputs = einet.forward(inputs[0])
 		ll_sample = weight * EinsumNetwork.log_likelihoods(outputs)
 		log_likelihood = ll_sample.sum()
 
-		objective = log_likelihood
+		objective = -log_likelihood
+		objective.backward()
+		optimizer.step()
+
+
+def epoch_einet_train_dro(train_dataloader, einet, epoch, dataset_name, weight=1, optimizer=None, perturbations=None):
+	train_dataloader = tqdm(
+		train_dataloader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
+		desc='Training epoch : {}, for dataset : {}'.format(epoch, dataset_name),
+		unit='batch'
+	)
+	einet.train()
+	for inputs in train_dataloader:
+		optimizer.zero_grad()
+
+		batch_input = inputs[0]
+		batch_input.requires_grad = True
+		outputs = einet.forward(batch_input)
+		log_likelihood = outputs.sum()
+		objective = -log_likelihood
 		objective.backward()
 
-		einet.em_process_batch()
-	einet.em_update()
+		# 1. Construct new batch
+
+		# 2. Forward new batch
+
+		# 3. Define objective
+
+		# 4. Perform optimizer step
+
+		optimizer.step()
 
 
 def evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=0):
@@ -221,7 +252,8 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 			   specific_filename=None):
 	RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id), EINET_MODEL_DIRECTORY)
 
-	if attack_type in [AMBIGUITY_SET_UNIFORM, NEURAL_NET, LOCAL_SEARCH, RESTRICTED_LOCAL_SEARCH, WASSERSTEIN_RANDOM_SAMPLES]:
+	if attack_type in [AMBIGUITY_SET_UNIFORM, NEURAL_NET, LOCAL_SEARCH, RESTRICTED_LOCAL_SEARCH,
+					   WASSERSTEIN_RANDOM_SAMPLES]:
 		if attack_type == NEURAL_NET:
 			sub_directory_name = NEURAL_NETWORK_ATTACK_MODEL_SUB_DIRECTORY
 		elif attack_type == LOCAL_SEARCH:
@@ -252,7 +284,7 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 									 "{}_{}_{}_{}_{}_adv.mdl".format(structure, dataset_name,
 																	 einet_args[NUM_SUMS],
 																	 einet_args[NUM_INPUT_DISTRIBUTIONS],
-																 einet_args[NUM_REPETITIONS]))
+																	 einet_args[NUM_REPETITIONS]))
 	else:
 		file_name = os.path.join(ATTACK_MODEL_DIRECTORY,
 								 "{}_{}_{}_{}_{}.mdl".format(structure, dataset_name, einet_args[NUM_SUMS],
@@ -263,19 +295,45 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 	return
 
 
+def train_einet_dro(run_id, structure, dataset_name, einet, train_labels, train_x, valid_x, test_x, einet_args,
+					perturbations, device, attack_type=CLEAN, batch_size=DEFAULT_TRAIN_BATCH_SIZE, is_adv=False):
+	patience = 1 if is_adv else DEFAULT_EINET_PATIENCE
+
+	early_stopping = EarlyStopping(einet, patience=patience, filepath=EARLY_STOPPING_FILE,
+								   delta=EARLY_STOPPING_DELTA)
+	optimizer = optim.Adam(list(einet.parameters()), lr=SGD_LEARNING_RATE, weight_decay=SGD_WEIGHT_DECAY)
+
+	train_dataset = TensorDataset(train_x)
+	NUM_EPOCHS = MAX_NUM_EPOCHS
+	for epoch_count in range(NUM_EPOCHS):
+		train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True)
+		epoch_einet_train_dro(train_dataloader, einet, epoch_count, dataset_name, weight=1, optimizer=optimizer,
+							  perturbations=perturbations)
+		train_ll, valid_ll, test_ll = evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=epoch_count)
+		if epoch_count > 1:
+			early_stopping(-valid_ll, epoch_count)
+			if early_stopping.should_stop and epoch_count > 5:
+				print("Early Stopping... {}".format(early_stopping))
+				break
+
+	save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attack_type, perturbations)
+
+	return einet
+
+
 def train_einet(run_id, structure, dataset_name, einet, train_labels, train_x, valid_x, test_x, einet_args,
 				perturbations, device, attack_type=CLEAN, batch_size=DEFAULT_TRAIN_BATCH_SIZE, is_adv=False):
 	patience = 1 if is_adv else DEFAULT_EINET_PATIENCE
 
 	early_stopping = EarlyStopping(einet, patience=patience, filepath=EARLY_STOPPING_FILE,
 								   delta=EARLY_STOPPING_DELTA)
+	optimizer = optim.Adam(list(einet.parameters()), lr=SGD_LEARNING_RATE, weight_decay=SGD_WEIGHT_DECAY)
 
 	train_dataset = TensorDataset(train_x)
 	NUM_EPOCHS = MAX_NUM_EPOCHS
-	# NUM_EPOCHS = 1
 	for epoch_count in range(NUM_EPOCHS):
 		train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True)
-		epoch_einet_train(train_dataloader, einet, epoch_count, dataset_name, weight=1)
+		epoch_einet_train(train_dataloader, einet, epoch_count, dataset_name, weight=1, optimizer=optimizer)
 		train_ll, valid_ll, test_ll = evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=epoch_count)
 		if epoch_count > 1:
 			early_stopping(-valid_ll, epoch_count)
@@ -306,7 +364,8 @@ def fetch_attack_method(attack_type):
 def fetch_adv_data(einet, dataset_name, train_data, test_data, test_labels, perturbations, attack_type, device,
 				   file_name=None, combine=False):
 	attack = fetch_attack_method(attack_type)
-	adv_data = attack.generate_adv_dataset(einet, dataset_name, test_data, test_labels, perturbations, device, combine=combine, batched=True, train_data=train_data)
+	adv_data = attack.generate_adv_dataset(einet, dataset_name, test_data, test_labels, perturbations, device,
+										   combine=combine, batched=True, train_data=train_data)
 
 	print("Fetched adversarial examples : {}/{}".format(adv_data.shape[0], test_data.shape[0]))
 
@@ -481,60 +540,3 @@ def test_conditional_einet(test_attack_type, perturbations, dataset_name, einet,
 																	batch_size=batch_size)
 	mean_ll, stddev_ll = get_stats(test_lls)
 	return mean_ll, stddev_ll
-
-
-def generate_conditional_samples(einet, structure, dataset_name, einet_args, test_x, attack_type, device):
-	einet.eval()
-	DATASET_CONDITIONAL_SAMPLES_DIR = os.path.join(CONDITIONAL_SAMPLES_DIRECTORY, dataset_name)
-	mkdir_p(DATASET_CONDITIONAL_SAMPLES_DIR)
-
-	if dataset_name == MNIST or dataset_name == BINARY_MNIST:
-
-		image_scope = np.array(range(MNIST_HEIGHT * MNIST_WIDTH)).reshape(MNIST_HEIGHT, MNIST_WIDTH)
-		marginalize_idx = list(image_scope[:, 0:round(MNIST_WIDTH / 2)].reshape(-1))
-		# marginalize_idx = list(image_scope[0:round(MNIST_HEIGHT / 2), :].reshape(-1))
-		keep_idx = [i for i in range(MNIST_WIDTH * MNIST_HEIGHT) if i not in marginalize_idx]
-		einet.set_marginalization_idx(marginalize_idx)
-
-		# ground truth
-		random.seed(356)
-		indices = [random.randrange(1, 10000, 1) for i in range(25)]
-		print(indices)
-
-		perturbed_test = test_x[indices, :].cpu().numpy()
-		random_perturbations = np.array([random.randrange(200, 750, 1) for i in range(125)])
-		random_perturbations = random_perturbations.reshape((25, 5))
-
-		for i in range(25):
-			perturbed_test[i][random_perturbations[i]] = 1 - perturbed_test[i][random_perturbations[i]]
-
-		ground_truth = np.copy(perturbed_test)
-		ground_truth = ground_truth.reshape((-1, 28, 28))
-		ground_truth_file = "{}_{}_{}_{}_{}_{}_ground_truth.png".format(attack_type, structure, dataset_name,
-																		einet_args[NUM_SUMS],
-																		einet_args[NUM_INPUT_DISTRIBUTIONS],
-																		einet_args[NUM_REPETITIONS])
-		save_image_stack(ground_truth, 1, 10, os.path.join(DATASET_CONDITIONAL_SAMPLES_DIR, ground_truth_file),
-						 margin_gray_val=0.)
-
-		covered_perturbed_test = np.copy(perturbed_test)
-		covered_perturbed_test[:, marginalize_idx] = 0
-		covered_perturbed_test = covered_perturbed_test.reshape((-1, 28, 28))
-		ground_truth_file = "{}_{}_{}_{}_{}_{}_covered_ground_truth.png".format(attack_type, structure, dataset_name,
-																				einet_args[NUM_SUMS],
-																				einet_args[NUM_INPUT_DISTRIBUTIONS],
-																				einet_args[NUM_REPETITIONS])
-		save_image_stack(covered_perturbed_test, 1, 10,
-						 os.path.join(DATASET_CONDITIONAL_SAMPLES_DIR, ground_truth_file),
-						 margin_gray_val=0.)
-
-		mpe_reconstruction = einet.mpe(x=torch.tensor(perturbed_test, device=torch.device(device))).cpu().numpy()
-		mpe_reconstruction = mpe_reconstruction.squeeze()
-		mpe_reconstruction = mpe_reconstruction.reshape((-1, 28, 28))
-		mpe_reconstruction_file = "{}_{}_{}_{}_{}_{}_mpe_reconstruction.png".format(attack_type, structure,
-																					dataset_name,
-																					einet_args[NUM_SUMS],
-																					einet_args[NUM_INPUT_DISTRIBUTIONS],
-																					einet_args[NUM_REPETITIONS])
-		save_image_stack(mpe_reconstruction, 1, 10,
-						 os.path.join(DATASET_CONDITIONAL_SAMPLES_DIR, mpe_reconstruction_file), margin_gray_val=0.)

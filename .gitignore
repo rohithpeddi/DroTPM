@@ -1,4 +1,7 @@
 # Byte-compiled / optimized / DLL files
+checkpoint.pt
+
+
 __pycache__/
 *.py[cod]
 *$py.class
@@ -13,7 +16,6 @@ checkpoints/
 dump/run_0/results/
 .idea/
 structure/
-checkpoint.pt
 
 # C extensions
 *.so
@@ -139,3 +141,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+checkpoint.pt
