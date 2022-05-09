@@ -185,7 +185,7 @@ if __name__ == '__main__':
 	# 3. Optimizer Weight Decay
 	# For every combination of the hyper-parameters we run thrice and take average
 
-	BATCH_SIZES = [100, 150, 200, 250, 300]
+	BATCH_SIZES = [100, 200, 300, 500, 600, 700]
 	OPTIMIZER_LEARNING_RATES = [5e-3, 1e-2, 5e-2, 1e-1]
 	OPTIMIZER_WEIGHT_DECAYS = [1e-4, 1e-3, 1e-2]
 
