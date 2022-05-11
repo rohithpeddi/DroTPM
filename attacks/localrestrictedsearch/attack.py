@@ -6,7 +6,6 @@ from tqdm import tqdm
 from constants import *
 
 
-
 # def generate_adversarial_sample_batched(einet, inputs, perturbations, k=10):
 # 	batch_size, num_dims = inputs.shape
 # 	iteration_inputs = inputs.clone().detach()
@@ -55,7 +54,7 @@ def generate_adversarial_sample_batched(einet, inputs, perturbations, device, k=
 
 	for iteration in range(perturbations):
 		# Always retain the current element for comparison
-		dim_idx = random.sample(range(1, num_dims+1), k)
+		dim_idx = random.sample(range(1, num_dims + 1), k)
 		dim_idx.append(0)
 
 		identity = torch.cat((torch.zeros(num_dims, device=torch.device(device)).reshape((1, -1)),
@@ -66,12 +65,12 @@ def generate_adversarial_sample_batched(einet, inputs, perturbations, device, k=
 		identity = identity.repeat((batch_size, 1))
 
 		perturbed_set = torch.repeat_interleave(iteration_inputs,
-												(k+1) * (torch.ones(batch_size, device=torch.device(device)).int()),
+												(k + 1) * (torch.ones(batch_size, device=torch.device(device)).int()),
 												dim=0)
 		perturbed_set = identity + perturbed_set - 2 * torch.mul(identity, perturbed_set)
 
 		arg_min_idx = []
-		if iteration == perturbations-1:
+		if iteration == perturbations - 1:
 			print("Finding minimum among perturbations")
 			if num_dims > 500:
 				outputs = []
