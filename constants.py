@@ -152,9 +152,7 @@ RATSPN_MNIST_RESULTS_DIRECTORY = "results/ratspn/mnist"
 # 				 'bnetflix', 'accidents', 'tretail', 'pumsb_star', 'dna', 'kosarek', 'msweb', 'book', 'tmovie',
 # 				 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
 
-DEBD_DATASETS = ['nltcs', 'msnbc', 'kdd', 'plants', 'jester', 'baudio',
-				 'bnetflix', 'accidents', 'tretail', 'pumsb_star', 'dna', 'kosarek', 'msweb', 'book', 'tmovie',
-				 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
+DEBD_DATASETS = ['tmovie', 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
 
 SMALL_VARIABLE_DATASETS = ['nltcs', 'msnbc', 'kdd', 'plants', 'baudio',
 						   'jester', 'bnetflix', 'accidents', 'tretail', 'pumsb_star']

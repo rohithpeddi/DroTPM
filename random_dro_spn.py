@@ -55,7 +55,7 @@ def fetch_einet_args_discrete(dataset_name, num_var, exponential_family, exponen
 		batch_size = 50
 		online_em_frequency = 5
 	elif dataset_name in ['tmovie', 'dna']:
-		num_distributions = 20
+		num_distributions = 10
 		batch_size = 50
 		online_em_frequency = 1
 	elif dataset_name in ['cwebkb', 'bbc', 'cr52']:
