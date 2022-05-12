@@ -7,7 +7,7 @@ import utilM
 # from sklearn import cross_validation
 
 # import utilM
-from CNET_class import CNET
+from CNET import CNET
 
 
 class BAG_CNET():

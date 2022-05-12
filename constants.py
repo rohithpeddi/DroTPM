@@ -62,7 +62,13 @@ AMU_EINET_MODEL_DIRECTORY = "checkpoints/einet/AMU"
 WASSERSTEIN_SAMPLES_EINET_MODEL_DIRECTORY = "checkpoints/einet/WRSDRO"
 WASSERSTEIN_META_EINET_MODEL_DIRECTORY = "checkpoints/einet/WMDRO"
 
+CLEAN_CNET_MODEL_DIRECTORY = "checkpoints/cnet/M"
+AMU_CNET_MODEL_DIRECTORY = "checkpoints/cnet/AMU"
+WASSERSTEIN_SAMPLES_CNET_MODEL_DIRECTORY = "checkpoints/cnet/WRSDRO"
+WASSERSTEIN_META_CNET_MODEL_DIRECTORY = "checkpoints/cnet/WMDRO"
+
 EINET_MODEL_DIRECTORY = "checkpoints/einet"
+CNET_MODEL_DIRECTORY = "checkpoints/cnet"
 WEIGHTED_EINET_MODEL_DIRECTORY = "checkpoints/weighted_einet"
 
 TRAIN_DATASET = "train_dataset"

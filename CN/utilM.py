@@ -544,7 +544,7 @@ def get_var_prob(topo_order, parents, cond_cpt, var):
 
 
 """
-    Get the Edge marignals from tree
+    Get the Edge marginals from tree
 """
 
 

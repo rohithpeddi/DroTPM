@@ -11,7 +11,7 @@ from collections import deque
 from Util import *
 import utilM
 
-from CLT_class import CLT
+from CLT import CLT
 from MIXTURE_CLT import load_mt
 import JT
 

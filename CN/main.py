@@ -2,9 +2,9 @@ from __future__ import print_function
 import sys
 import time
 
-from CLT_class import main_clt
+from CLT import main_clt
 from MIXTURE_CLT import main_mixture_clt
-from CNET_class import main_cutset_opt
+from CNET import main_cutset_opt
 from CNXD import main_cnxd
 from cnet_bag import main_bag_cnet
 from cnr import main_cnr_structure, main_cnr_parm

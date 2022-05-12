@@ -11,7 +11,7 @@ from __future__ import print_function
 
 import datasets
 from Util import *
-from CLT_class import CLT
+from CLT import CLT
 import sys
 import copy
 import utilM

@@ -3,12 +3,11 @@ from torch.utils.data import TensorDataset, DataLoader
 
 import wandb
 import einet_base_spn as SPN
-from EinsumNetwork.ExponentialFamilyArray import NormalArray, CategoricalArray
+from EinsumNetwork.ExponentialFamilyArray import CategoricalArray
 from constants import *
-from utils import pretty_print_dictionary, dictionary_to_file
-from attacks.random import attack as random_attack
+from attacks.SPN.random import attack as random_attack
 from deeprob.torch.callbacks import EarlyStopping
-from EinsumNetwork import EinsumNetwork, Graph
+from EinsumNetwork import EinsumNetwork
 
 run1 = wandb.init(project="DROSPN", entity="utd-ml-pgm")
 columns = ["attack_type", "perturbations", "standard_mean_ll", "standard_std_ll",

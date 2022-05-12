@@ -12,7 +12,7 @@ from __future__ import print_function
 
 from Util import *
 
-from CLT_class import CLT
+from CLT import CLT
 import JT
 
 

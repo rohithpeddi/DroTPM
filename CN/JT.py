@@ -10,7 +10,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.sparse.csgraph import depth_first_order
-from CLT_class import CLT
+from CLT import CLT
 import copy
 import time
 import sys
