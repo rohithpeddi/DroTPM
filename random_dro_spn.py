@@ -54,7 +54,7 @@ def fetch_einet_args_discrete(dataset_name, num_var, exponential_family, exponen
 		batch_size = 50
 		online_em_frequency = 5
 	elif dataset_name in ['tmovie', 'dna']:
-		num_distributions = 20
+		num_distributions = 10
 		batch_size = 50
 		online_em_frequency = 1
 	elif dataset_name in ['cwebkb', 'bbc', 'cr52']:
@@ -390,7 +390,7 @@ def random_dro_spn(run_id, specific_datasets=None, perturbations=None, device=No
 				test_trained_einet(dataset_name, trained_clean_einet, trained_clean_einet, train_x, test_x, test_labels,
 								   ll_table, cll_tables, "clean", 0)
 
-			for samples in [10, 20, 30, 40, 50]:
+			for samples in [10, 30, 50, 100]:
 				perturbed_training_datasets = []
 				evaluation_message("Training using samples {}".format(samples))
 				for sample in range(samples):
