@@ -9,7 +9,7 @@
 
 import numpy as np
 # import numba
-from Util import *
+from CN.Util import *
 
 # import time
 

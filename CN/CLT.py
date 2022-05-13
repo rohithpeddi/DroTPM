@@ -6,9 +6,9 @@ Define the Chow_liu Tree class
 
 from __future__ import print_function
 
-from Util import *
+from CN.Util import *
 
-import utilM
+import CN.utilM as utilM
 
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree

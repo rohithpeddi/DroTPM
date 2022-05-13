@@ -5,20 +5,20 @@ import asyncio
 def generate_adversarial_sample(sample, cnet, perturbations, k):
 	num_dims = sample.shape[0]
 
-	repeated_sample = np.repeat(sample, [k + 1], axis=0)
-	perturbed_set = np.zeros((1, num_dims))
+	perturbed_set = np.tile(sample, (k + 1, 1))
+	identity = np.zeros((1, num_dims))
 	for row in range(k):
-		perturbation = np.array([0] * (num_dims - perturbations) + [1] * perturbations)
-		np.random.shuffle(perturbation)
-		perturbation = perturbation.reshape(1, -1)
+		identity = np.array([0] * (num_dims - perturbations) + [1] * perturbations)
+		np.random.shuffle(identity)
+		perturbation = identity.reshape(1, -1)
 
-		perturbed_set = np.concatenate((perturbed_set, perturbation), axis=0)
+		identity = np.concatenate((identity, perturbation), axis=0)
 
-	perturbed_set = repeated_sample + perturbed_set - 2 * np.multiply(repeated_sample, perturbed_set)
+	perturbed_set = (perturbed_set + identity - 2 * np.multiply(perturbed_set, identity)).astype(int)
 	perturbed_input_probabilities = cnet.computeLL_each_datapoint(perturbed_set)
 
 	min_probability_idx = np.argmin(perturbed_input_probabilities, axis=0)
-	adv_sample = perturbed_set[min_probability_idx]
+	adv_sample = perturbed_set[min_probability_idx, :]
 
 	return adv_sample
 

@@ -10,11 +10,11 @@ The class of CNet
 from __future__ import print_function
 
 import datasets
-from Util import *
-from CLT import CLT
+from CN.Util import *
+from CN.CLT import CLT
 import sys
 import copy
-import utilM
+import CN.utilM as utilM
 
 '''
 The Cutset network learned from dataset
@@ -63,6 +63,10 @@ class CNET:
 
         new_dataset0 = np.delete(dataset[dataset[:, variable] == 0], variable, 1)
         p0 = float(new_dataset0.shape[0]) + 1.0
+
+        # Normalize
+        p0 = p0 / (p0 + p1)
+        p1 = 1.0 - p0
 
         return [variable, ids[variable], p0, p1, self.learnStructureHelper(new_dataset0, new_ids),
                 self.learnStructureHelper(new_dataset1, new_ids)]
@@ -457,3 +461,56 @@ def main_cutset_opt(parms_dict):
     main_dict = {}
     utilM.save_cutset(main_dict, best_module.tree, np.arange(train_dataset.shape[1]), ccpt_flag=True)
     np.savez_compressed(out_dir + data_name, module=main_dict)
+
+
+'''
+   Main function for Learning an optimal Cutset Network from Data bounded by max depth
+   Store the learned Cutset Network
+'''
+
+
+def learn_best_cutset(train_dataset, valid_dataset, test_dataset, max_depth=10):
+    print("----------------------------------------------------")
+    print("Learning Cutset Networks on original data           ")
+    print("----------------------------------------------------")
+
+    train_ll = np.zeros(max_depth)
+    valid_ll = np.zeros(max_depth)
+    test_ll = np.zeros(max_depth)
+
+    best_valid = -np.inf
+    best_module = None
+    for i in range(1, max_depth + 1):
+        cnet = CNET(depth=i)
+        cnet.learnStructure(train_dataset)
+        train_ll[i - 1] = np.sum(cnet.getWeights(train_dataset)) / train_dataset.shape[0]
+        valid_ll[i - 1] = np.sum(cnet.getWeights(valid_dataset)) / valid_dataset.shape[0]
+        test_ll[i - 1] = np.sum(cnet.getWeights(test_dataset)) / test_dataset.shape[0]
+
+        if best_valid < valid_ll[i - 1]:
+            best_valid = valid_ll[i - 1]
+            best_module = copy.deepcopy(cnet)
+
+    print('Train set cnet LL scores')
+    for l in range(max_depth):
+        print(train_ll[l], l + 1)
+    print()
+
+    print('Valid set cnet LL scores')
+    for l in range(max_depth):
+        print(valid_ll[l], l + 1)
+    print()
+
+    print('test set cnet LL scores')
+    for l in range(max_depth):
+        print(test_ll[l], l + 1)
+
+    best_ind = np.argmax(valid_ll)
+
+    print()
+    print('Best Validation ll score achieved in layer: ', best_ind)
+    print('Train set LL score: ', np.sum(best_module.getWeights(train_dataset)) / train_dataset.shape[0])
+    print('valid set LL score: ', np.sum(best_module.getWeights(valid_dataset)) / valid_dataset.shape[0])
+    print('test set LL score : ', np.sum(best_module.getWeights(test_dataset)) / test_dataset.shape[0])
+
+    return best_module
