@@ -154,11 +154,11 @@ RATSPN_MNIST_RESULTS_DIRECTORY = "results/ratspn/mnist"
 
 # DEBD_DATASETS = ['cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
 
-# DEBD_DATASETS = ['nltcs', 'msnbc', 'kdd', 'plants', 'jester', 'baudio',
-# 				 'bnetflix', 'accidents', 'tretail', 'pumsb_star', 'dna', 'kosarek', 'msweb', 'book', 'tmovie',
-# 				 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
+DEBD_DATASETS = ['nltcs', 'msnbc', 'kdd', 'plants', 'jester', 'baudio',
+				 'bnetflix', 'accidents', 'tretail', 'pumsb_star', 'dna', 'kosarek', 'msweb', 'book', 'tmovie',
+				 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
 
-DEBD_DATASETS = ['tmovie', 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
+# DEBD_DATASETS = ['tmovie', 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
 
 SMALL_VARIABLE_DATASETS = ['nltcs', 'msnbc', 'kdd', 'plants', 'baudio',
 						   'jester', 'bnetflix', 'accidents', 'tretail', 'pumsb_star']
@@ -232,8 +232,8 @@ DEFAULT_ONLINE_EM_FREQUENCY = 1
 
 MAX_NUM_EPOCHS = 1000
 
-EARLY_STOPPING_DELTA = 1e-4
-DEFAULT_EINET_PATIENCE = 300
+EARLY_STOPPING_DELTA = 1e-3
+DEFAULT_EINET_PATIENCE = 1
 DEFAULT_SPN_PATIENCE = 30
 EARLY_STOPPING_FILE = 'checkpoint.pt'
 
@@ -247,7 +247,7 @@ DEFAULT_DEPTH = 3
 
 # NUM_INPUT_DISTRIBUTIONS_LIST = [10, 20, 30, 40, 50]
 NUM_INPUT_DISTRIBUTIONS_LIST = [10]
-PERTURBATIONS = [0, 1, 3, 5]
+PERTURBATIONS = [3, 5]
 DRO_PERTURBATIONS = [1, 3, 5]
 CONTINUOUS_PERTURBATIONS = [1. / 255, 3. / 255, 5. / 255, 8. / 255]
 DEFAULT_AVERAGE_REPEAT_SIZE = 100

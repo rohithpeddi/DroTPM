@@ -84,8 +84,8 @@ def load_dataset(dataset_name, device):
 
 
 def load_structure(run_id, structure, dataset_name, structure_args):
-	# RUN_STRUCTURE_DIRECTORY = os.path.join("run_{}".format(run_id), STRUCTURE_DIRECTORY)
-	RUN_STRUCTURE_DIRECTORY = os.path.join("", STRUCTURE_DIRECTORY)
+	RUN_STRUCTURE_DIRECTORY = os.path.join("run_{}".format(run_id), STRUCTURE_DIRECTORY)
+	# RUN_STRUCTURE_DIRECTORY = os.path.join("", STRUCTURE_DIRECTORY)
 	mkdir_p(RUN_STRUCTURE_DIRECTORY)
 	graph = None
 	if structure == POON_DOMINGOS:
@@ -306,7 +306,10 @@ def fetch_attack_method(attack_type):
 def fetch_adv_data(einet, dataset_name, train_data, test_data, test_labels, perturbations, attack_type, device,
 				   file_name=None, combine=False):
 	attack = fetch_attack_method(attack_type)
-	adv_data = attack.generate_adv_dataset(einet, dataset_name, test_data, test_labels, perturbations, device, combine=combine, batched=True, train_data=train_data)
+	adv_data = attack.generate_adv_dataset(einet=einet, dataset_name=dataset_name, inputs=test_data, labels=test_labels, perturbations=perturbations, device=device, combine=combine, batched=True,
+						 train_data=train_data)
+
+	# adv_data = attack.generate_adv_dataset(einet, dataset_name, test_data, test_labels, perturbations, device, combine=combine, batched=True, train_data=train_data)
 
 	print("Fetched adversarial examples : {}/{}".format(adv_data.shape[0], test_data.shape[0]))
 

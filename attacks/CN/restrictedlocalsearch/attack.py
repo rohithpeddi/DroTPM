@@ -27,7 +27,7 @@ def generate_adv_dataset(cnet, dataset_name, inputs, perturbations, combine=Fals
 	adv_inputs = np.copy(inputs)
 	original_N, num_dims = inputs.shape
 
-	k = min(max(10, int(0.3 * num_dims)), 50)
+	k = min(max(10, int(0.3 * num_dims)), 100)
 
 	loop = asyncio.get_event_loop()
 	looper = asyncio.gather(

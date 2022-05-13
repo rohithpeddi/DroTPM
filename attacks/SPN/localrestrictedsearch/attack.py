@@ -2,9 +2,9 @@ import torch
 import random
 from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
+import numpy as np
 
 from constants import *
-
 
 
 # def generate_adversarial_sample_batched(einet, inputs, perturbations, k=10):
@@ -55,7 +55,7 @@ def generate_adversarial_sample_batched(einet, inputs, perturbations, device, k=
 
 	for iteration in range(perturbations):
 		# Always retain the current element for comparison
-		dim_idx = random.sample(range(1, num_dims+1), k)
+		dim_idx = random.sample(range(1, num_dims + 1), k)
 		dim_idx.append(0)
 
 		identity = torch.cat((torch.zeros(num_dims, device=torch.device(device)).reshape((1, -1)),
@@ -66,12 +66,12 @@ def generate_adversarial_sample_batched(einet, inputs, perturbations, device, k=
 		identity = identity.repeat((batch_size, 1))
 
 		perturbed_set = torch.repeat_interleave(iteration_inputs,
-												(k+1) * (torch.ones(batch_size, device=torch.device(device)).int()),
+												(k + 1) * (torch.ones(batch_size, device=torch.device(device)).int()),
 												dim=0)
 		perturbed_set = identity + perturbed_set - 2 * torch.mul(identity, perturbed_set)
 
 		arg_min_idx = []
-		if iteration == perturbations-1:
+		if iteration == perturbations - 1:
 			print("Finding minimum among perturbations")
 			if num_dims > 500:
 				outputs = []
@@ -98,12 +98,51 @@ def generate_adversarial_sample_batched(einet, inputs, perturbations, device, k=
 	return adv_sample_batched
 
 
+# def generate_adversarial_sample_batched(einet, inputs, perturbations, device, k=10):
+# 	batch_size, num_dims = inputs.shape
+# 	iteration_inputs = inputs.clone().detach()
+#
+# 	perturbed_set_sample_list = []
+# 	for b in range(batch_size):
+# 		perturbed_set_sample = np.zeros((1, num_dims))
+# 		for row in range(k):
+# 			perturbation = np.array([0] * (num_dims - perturbations) + [1] * perturbations)
+# 			np.random.shuffle(perturbation)
+# 			perturbation = perturbation.reshape(1, -1)
+# 			perturbed_set_sample = np.concatenate((perturbed_set_sample, perturbation), axis=0)
+# 		perturbed_set_sample_list.append(torch.tensor(perturbed_set_sample, device=device))
+# 	perturbed_set = torch.cat(perturbed_set_sample_list)
+#
+# 	repeated_iteration_inputs = torch.repeat_interleave(iteration_inputs, (k + 1) * (torch.ones(batch_size, device=torch.device(device)).int()), dim=0)
+# 	perturbed_set = repeated_iteration_inputs + perturbed_set - 2 * torch.mul(repeated_iteration_inputs, perturbed_set)
+#
+# 	if num_dims > 500:
+# 		outputs = []
+# 		perturbed_dataset = TensorDataset(perturbed_set)
+# 		perturbed_dataloader = DataLoader(perturbed_dataset, shuffle=False, batch_size=100)
+# 		for perturbed_inputs in perturbed_dataloader:
+# 			outputs.append(einet(perturbed_inputs[0]))
+# 		outputs = (torch.cat(outputs)).clone().detach()
+# 	else:
+# 		outputs = (einet(perturbed_set)).clone().detach()
+#
+# 	arg_min_idx = []
+# 	for batch_idx in range(batch_size):
+# 		batch_input_min_idx = torch.argmin(
+# 			outputs[batch_idx * (k + 1):min((batch_idx + 1) * (k + 1), outputs.shape[0])])
+# 		arg_min_idx.append(batch_idx * (k + 1) + batch_input_min_idx)
+#
+# 	adv_sample_batched = perturbed_set[arg_min_idx, :]
+#
+# 	return adv_sample_batched
+
+
 def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, device, combine=False, batched=False,
 						 train_data=None):
 	adv_inputs = inputs.detach().clone()
 	original_N, num_dims = inputs.shape
 
-	k = min(max(10, int(0.3 * num_dims)), 50)
+	k = min(max(10, int(0.3 * num_dims)), 100)
 	if dataset_name in SMALL_VARIABLE_DATASETS:
 		batch_size = max(1, int(5000 / k)) if batched else 1
 	else:
