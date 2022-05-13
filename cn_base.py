@@ -41,6 +41,9 @@ def save_cnet():
 
 # 4. Train cutset network
 def train_cnet(run_id, dataset_name, train_x, valid_x, test_x, perturbations, attack_type=CLEAN, is_adv=False):
+
+	
+
 	pass
 
 
