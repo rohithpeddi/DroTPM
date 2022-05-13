@@ -10,14 +10,14 @@ from tqdm import tqdm
 import datasets
 from EinsumNetworkSGD import EinsumNetwork, Graph
 from EinsumNetworkSGD.ExponentialFamilyArray import NormalArray, CategoricalArray, BinomialArray
-from attacks.localrestrictedsearch import attack as local_restricted_search_attack
-from attacks.localsearch import attack as local_search_attack
-from attacks.weakermodel import attack as weaker_attack
-from attacks.amuniform import attack as am_uniform
+from attacks.SPN.localrestrictedsearch import attack as local_restricted_search_attack
+from attacks.SPN.localsearch import attack as local_search_attack
+from attacks.SPN.weakermodel import attack as weaker_attack
+from attacks.SPN.amuniform import attack as am_uniform
 from constants import *
 from deeprob.torch.callbacks import EarlyStopping
 from utils import mkdir_p
-from utils import predict_labels_mnist, save_image_stack
+from utils import predict_labels_mnist
 
 
 def generate_exponential_family_args(exponential_family, dataset_name):
@@ -209,34 +209,6 @@ def epoch_einet_train(train_dataloader, einet, epoch, dataset_name, weight=1, op
 		optimizer.step()
 
 
-def epoch_einet_train_dro(train_dataloader, einet, epoch, dataset_name, weight=1, optimizer=None, perturbations=None):
-	train_dataloader = tqdm(
-		train_dataloader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
-		desc='Training epoch : {}, for dataset : {}'.format(epoch, dataset_name),
-		unit='batch'
-	)
-	einet.train()
-	for inputs in train_dataloader:
-		optimizer.zero_grad()
-
-		batch_input = inputs[0]
-		batch_input.requires_grad = True
-		outputs = einet.forward(batch_input)
-		log_likelihood = outputs.sum()
-		objective = -log_likelihood
-		objective.backward()
-
-		# 1. Construct new batch
-
-		# 2. Forward new batch
-
-		# 3. Define objective
-
-		# 4. Perform optimizer step
-
-		optimizer.step()
-
-
 def evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=0):
 	# Evaluate
 	einet.eval()
@@ -297,18 +269,79 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 
 def train_einet_dro(run_id, structure, dataset_name, einet, train_labels, train_x, valid_x, test_x, einet_args,
 					perturbations, device, attack_type=CLEAN, batch_size=DEFAULT_TRAIN_BATCH_SIZE, is_adv=False):
-	patience = 1 if is_adv else DEFAULT_EINET_PATIENCE
-
-	early_stopping = EarlyStopping(einet, patience=patience, filepath=EARLY_STOPPING_FILE,
+	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE, filepath=EARLY_STOPPING_FILE,
 								   delta=EARLY_STOPPING_DELTA)
 	optimizer = optim.Adam(list(einet.parameters()), lr=SGD_LEARNING_RATE, weight_decay=SGD_WEIGHT_DECAY)
 
 	train_dataset = TensorDataset(train_x)
-	NUM_EPOCHS = MAX_NUM_EPOCHS
-	for epoch_count in range(NUM_EPOCHS):
-		train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True)
-		epoch_einet_train_dro(train_dataloader, einet, epoch_count, dataset_name, weight=1, optimizer=optimizer,
-							  perturbations=perturbations)
+	train_dataloader = DataLoader(train_dataset, batch_size, shuffle=False)
+	einet.train()
+
+	meta_adv_epoch_count = 1
+	meta_gradients = torch.zeros(train_x.shape, device=device)
+	for epoch_count in range(1, MAX_NUM_EPOCHS):
+		train_dataloader = tqdm(
+			train_dataloader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
+			desc='Training epoch : {}, for dataset : {}'.format(epoch_count, dataset_name),
+			unit='batch'
+		)
+
+		batch_counter = 0
+		for inputs in train_dataloader:
+			einet.train()
+			optimizer.zero_grad()
+
+			batch_input = inputs[0]
+			batch_input.requires_grad = True
+			outputs = einet.forward(batch_input)
+			log_likelihood = outputs.sum()
+			objective = -log_likelihood
+			objective.backward()
+
+			batch_input_grad = batch_input.grad
+			meta_gradients[(batch_size * batch_counter): min(train_x.shape[0], (batch_size * (batch_counter + 1))), :] += batch_input_grad
+
+			if epoch_count % meta_adv_epoch_count == 0:
+				# 1. Construct new batch
+				# Greedy step in choosing the places to flip based on gradients
+				adv_batch = batch_input.detach().clone()
+				scored_input = torch.mul((-2*adv_batch+1), meta_gradients[(batch_size * batch_counter): (batch_size * (batch_counter + 1)), :])
+				num_dims = train_x.shape[1]
+				(values, indices) = torch.topk(scored_input.view(1, -1), (adv_batch.shape[0])*perturbations)
+				row_change_count_dict = {}
+				for index in list(indices.cpu().numpy()[-1]):
+					row = index // num_dims
+					column = index % num_dims
+					if not row in row_change_count_dict:
+						row_change_count_dict[row] = 1
+					elif row_change_count_dict[row] >= 5:
+						continue
+					else:
+						row_change_count_dict[row] += 1
+					adv_batch[row, column] = 1-adv_batch[row, column]
+
+				# Evaluation check
+				einet.eval()
+				original_log_likelihood = EinsumNetwork.eval_loglikelihood_batched(einet, batch_input, batch_size=EVAL_BATCH_SIZE)
+				adv_log_likelihood = EinsumNetwork.eval_loglikelihood_batched(einet, adv_batch, batch_size=EVAL_BATCH_SIZE)
+				# print("Decreased log score {} ".format(original_log_likelihood-adv_log_likelihood))
+
+				# 2. Forward new batch
+				# 3. Define objective
+				# 4. Perform optimizer step
+				einet.train()
+				optimizer.zero_grad()
+				adv_outputs = einet.forward(adv_batch)
+				adv_log_likelihood = adv_outputs.sum()
+				adv_objective = -adv_log_likelihood
+				adv_objective.backward()
+
+			optimizer.step()
+			batch_counter = batch_counter + 1
+
+		if epoch_count % meta_adv_epoch_count == 0:
+			meta_gradients = torch.zeros(train_x.shape, device=device)
+
 		train_ll, valid_ll, test_ll = evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=epoch_count)
 		if epoch_count > 1:
 			early_stopping(-valid_ll, epoch_count)
@@ -316,8 +349,9 @@ def train_einet_dro(run_id, structure, dataset_name, einet, train_labels, train_
 				print("Early Stopping... {}".format(early_stopping))
 				break
 
+	einet.load_state_dict(early_stopping.get_best_state())
+	train_ll, valid_ll, test_ll = evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=epoch_count)
 	save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attack_type, perturbations)
-
 	return einet
 
 
@@ -332,7 +366,7 @@ def train_einet(run_id, structure, dataset_name, einet, train_labels, train_x, v
 	train_dataset = TensorDataset(train_x)
 	NUM_EPOCHS = MAX_NUM_EPOCHS
 	for epoch_count in range(NUM_EPOCHS):
-		train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True)
+		train_dataloader = DataLoader(train_dataset, batch_size, shuffle=False)
 		epoch_einet_train(train_dataloader, einet, epoch_count, dataset_name, weight=1, optimizer=optimizer)
 		train_ll, valid_ll, test_ll = evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=epoch_count)
 		if epoch_count > 1:

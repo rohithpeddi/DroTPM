@@ -175,6 +175,8 @@ def test_standard_spn_discrete(run_id, device, batch_size, optimizer_learning_ra
 			avg_std = np.mean(np.array(std_list))
 			hp_tuning_table.add_data(batch_size, learning_rate, weight_decay, avg_mean, avg_std, mean_list[0],
 									 mean_list[1], mean_list[2])
+			evaluation_message("Logging into table: Batch size {}, Learning rate {}, Weight decay {}, Avg Mean {}, Avg Std {}, Mean run 1 {}, Mean run 2 {}, Mean run 3 {}".format(batch_size, learning_rate, weight_decay, avg_mean, avg_std, mean_list[0],
+									 mean_list[1], mean_list[2]))
 
 
 if __name__ == '__main__':

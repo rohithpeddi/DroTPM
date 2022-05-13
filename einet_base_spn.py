@@ -9,10 +9,10 @@ from tqdm import tqdm
 import datasets
 from EinsumNetwork import EinsumNetwork, Graph
 from EinsumNetwork.ExponentialFamilyArray import NormalArray, CategoricalArray, BinomialArray
-from attacks.localrestrictedsearch import attack as local_restricted_search_attack
-from attacks.localsearch import attack as local_search_attack
-from attacks.weakermodel import attack as weaker_attack
-from attacks.amuniform import attack as am_uniform
+from attacks.SPN.localrestrictedsearch import attack as local_restricted_search_attack
+from attacks.SPN.localsearch import attack as local_search_attack
+from attacks.SPN.weakermodel import attack as weaker_attack
+from attacks.SPN.amuniform import attack as am_uniform
 from constants import *
 from deeprob.torch.callbacks import EarlyStopping
 from utils import mkdir_p
