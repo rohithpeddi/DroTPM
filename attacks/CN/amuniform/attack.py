@@ -18,6 +18,14 @@ def generate_perturbed_inputs(inputs, perturbed_idx):
 	return perturbed_inputs
 
 
+def background(f):
+	def wrapped(*args, **kwargs):
+		return asyncio.get_event_loop().run_in_executor(None, f, *args, **kwargs)
+
+	return wrapped
+
+
+@background
 def generate_log_likelihood_score(cnet, inputs, perturbed_idx):
 	perturbed_inputs = generate_perturbed_inputs(inputs, perturbed_idx)
 	ll_score = cnet.computeLL(perturbed_inputs)
@@ -34,10 +42,10 @@ def generate_adv_dataset(cnet, dataset_name, inputs, perturbations, combine=Fals
 		loop = asyncio.get_event_loop()
 		looper = asyncio.gather(
 			*[generate_log_likelihood_score(cnet, adv_inputs, perturbed_idx) for perturbed_idx in perturbed_idx_list])
-		ll_scores = loop.run_until_complete(looper)
+		ll_scores = np.asarray(loop.run_until_complete(looper))
 
 		min_log_score_idx = np.argmin(ll_scores)
-		min_perturbed_idx.append(perturbed_idx_list[min_log_score_idx])
+		min_perturbed_idx = perturbed_idx_list[min_log_score_idx]
 		perturbed_idx_list = fetch_perturbed_idx_appended(num_dims, min_perturbed_idx)
 
 	perturbed_inputs = generate_perturbed_inputs(inputs, min_perturbed_idx)

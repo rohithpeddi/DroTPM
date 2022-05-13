@@ -2,15 +2,23 @@ import numpy as np
 import asyncio
 
 
+def background(f):
+	def wrapped(*args, **kwargs):
+		return asyncio.get_event_loop().run_in_executor(None, f, *args, **kwargs)
+
+	return wrapped
+
+
+@background
 def generate_adversarial_sample(sample, cnet, perturbations, k):
 	num_dims = sample.shape[0]
 
 	perturbed_set = np.tile(sample, (k + 1, 1))
 	identity = np.zeros((1, num_dims))
 	for row in range(k):
-		identity = np.array([0] * (num_dims - perturbations) + [1] * perturbations)
-		np.random.shuffle(identity)
-		perturbation = identity.reshape(1, -1)
+		perturbation = np.array([0] * (num_dims - perturbations) + [1] * perturbations)
+		np.random.shuffle(perturbation)
+		perturbation = perturbation.reshape(1, -1)
 
 		identity = np.concatenate((identity, perturbation), axis=0)
 
@@ -32,7 +40,7 @@ def generate_adv_dataset(cnet, dataset_name, inputs, perturbations, combine=Fals
 	loop = asyncio.get_event_loop()
 	looper = asyncio.gather(
 		*[generate_adversarial_sample(adv_inputs[i], cnet, perturbations, k) for i in range(original_N)])
-	perturbed_inputs = loop.run_until_complete(looper)
+	perturbed_inputs = np.asarray(loop.run_until_complete(looper))
 
 	if combine:
 		return np.concatenate((inputs, perturbed_inputs), axis=0)

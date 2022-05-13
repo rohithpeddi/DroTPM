@@ -83,7 +83,7 @@ def test_cnet(run_id, specific_datasets=None, is_adv=False, train_attack_type=No
 			mean_ll, std_ll, attack_test_x = CN.test_cnet(dataset_name, trained_adv_cnet, trained_clean_cnet,
 														  train_x, test_x, perturbations=perturbations,
 														  attack_type=attack_type, is_adv=is_adv)
-			evaluation_message("{} Mean LL : {}, Std LL : {}".format(attack_type, mean_ll, std_ll))
+			evaluation_message("{}-{} Mean LL : {}, Std LL : {}".format(attack_type, perturbations, mean_ll, std_ll))
 			return mean_ll, std_ll, attack_test_x
 
 		# 1. Original Test Set
