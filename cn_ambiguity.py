@@ -1,6 +1,7 @@
 import wandb
 import cn_base as CN
 from constants import *
+import argparse
 from utils import pretty_print_dictionary, dictionary_to_file
 
 ############################################################################
@@ -160,26 +161,35 @@ def test_cnet(run_id, specific_datasets=None, is_adv=False, train_attack_type=No
 
 if __name__ == '__main__':
 
-	for dataset_name in DEBD_DATASETS:
-		for perturbation in PERTURBATIONS:
-			if perturbation == 0:
-				TRAIN_ATTACKS = [CLEAN]
-			else:
-				TRAIN_ATTACKS = [AMBIGUITY_SET_UNIFORM]
-			# TRAIN_ATTACKS = [LOCAL_SEARCH, RESTRICTED_LOCAL_SEARCH]
+	parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser.add_argument('--dataset', type=str, required=True, help="dataset name")
+	parser.add_argument('--runid', type=str, required=True, help="dataset name")
 
-			for train_attack_type in TRAIN_ATTACKS:
-				evaluation_message(
-					"Logging values for {}, perturbation {}, train attack type {}".format(dataset_name, perturbation,
-																						  train_attack_type))
-				if perturbation != 0:
-					test_cnet(run_id=1451, specific_datasets=dataset_name, is_adv=True,
-							  train_attack_type=train_attack_type, perturbations=perturbation)
-				elif perturbation == 0:
-					test_cnet(run_id=1451, specific_datasets=dataset_name, is_adv=False,
-							  train_attack_type=train_attack_type, perturbations=perturbation)
+	ARGS = parser.parse_args()
+	print(ARGS)
 
-		dataset_wandb_tables = fetch_wandb_table(dataset_name)
-		ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
+	dataset_name = ARGS.dataset
+	run_id = ARGS.runid
 
-		wandb_run.log({"{}-LL".format(dataset_name): ll_table})
+	for perturbation in PERTURBATIONS:
+		if perturbation == 0:
+			TRAIN_ATTACKS = [CLEAN]
+		else:
+			TRAIN_ATTACKS = [AMBIGUITY_SET_UNIFORM]
+		# TRAIN_ATTACKS = [LOCAL_SEARCH, RESTRICTED_LOCAL_SEARCH]
+
+		for train_attack_type in TRAIN_ATTACKS:
+			evaluation_message(
+				"Logging values for {}, perturbation {}, train attack type {}".format(dataset_name, perturbation,
+																					  train_attack_type))
+			if perturbation != 0:
+				test_cnet(run_id=run_id, specific_datasets=dataset_name, is_adv=True,
+						  train_attack_type=train_attack_type, perturbations=perturbation)
+			elif perturbation == 0:
+				test_cnet(run_id=run_id, specific_datasets=dataset_name, is_adv=False,
+						  train_attack_type=train_attack_type, perturbations=perturbation)
+
+	dataset_wandb_tables = fetch_wandb_table(dataset_name)
+	ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
+
+	wandb_run.log({"{}-AMU-LL".format(dataset_name): ll_table})
