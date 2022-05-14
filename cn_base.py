@@ -14,7 +14,7 @@ from attacks.CN.amuniform import attack as am_uniform
 from attacks.CN.random import attack as wasserstein_random_samples
 from attacks.CN.weakermodel import attack as weaker_model
 
-from CN import CNET
+from CN import CNET, utilM
 
 
 # 1. Load dataset
@@ -46,9 +46,19 @@ def load_pretrained_cnet(run_id, dataset_name, attack_type, perturbations, speci
 	return None
 
 
+def get_filename(run_id, dataset_name, perturbations, attack_type):
+	RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id), CLEAN_CNET_MODEL_DIRECTORY)
+	mkdir_p(RUN_MODEL_DIRECTORY)
+	file_name = os.path.join(RUN_MODEL_DIRECTORY, "{}_{}_{}.npz".format(dataset_name, perturbations, attack_type))
+	return file_name
+
+
 # 3. Save Model
-def save_cnet():
-	pass
+def save_cnet(run_id, trained_cnet, train_x, dataset_name, perturbations, attack_type):
+	main_dict = {}
+	utilM.save_cutset(main_dict, trained_cnet.tree, np.arange(train_x.shape[1]), ccpt_flag=True)
+	filename = get_filename(run_id, dataset_name, perturbations, attack_type)
+	np.savez_compressed(filename, module=main_dict)
 
 
 # 4. Train cutset network
@@ -71,17 +81,20 @@ def train_cnet(run_id, trained_cnet, dataset_name, train_x, valid_x, test_x, per
 				break
 			adv_train_x = fetch_adv_data(trained_cnet, dataset_name, train_x, train_x, perturbations, attack_type,
 										 combine=False)
-			trained_cnet.sgd_update_params(adv_train_x, eta=min(DEFAULT_CNET_LEARNING_RATE, 1/(train_x.shape[0]*100)))
+			trained_cnet.sgd_update_params(adv_train_x,
+										   eta=min(DEFAULT_CNET_LEARNING_RATE, 1 / (train_x.shape[0] * 100)))
 			train_ll, valid_ll, test_ll = evaluate_lls(trained_cnet, train_x, valid_x, test_x, epoch)
 			previous_train_ll = current_train_ll
 			current_train_ll = valid_ll
+
+	save_cnet(run_id, trained_cnet, train_x, dataset_name, perturbations, attack_type)
 	return trained_cnet
 
 
 def evaluate_lls(cnet, train_x, valid_x, test_x, epoch):
-	train_ll = np.sum(cnet.getWeights(train_x))/train_x.shape[0]
-	valid_ll = np.sum(cnet.getWeights(valid_x))/valid_x.shape[0]
-	test_ll = np.sum(cnet.getWeights(test_x))/test_x.shape[0]
+	train_ll = np.sum(cnet.getWeights(train_x)) / train_x.shape[0]
+	valid_ll = np.sum(cnet.getWeights(valid_x)) / valid_x.shape[0]
+	test_ll = np.sum(cnet.getWeights(test_x)) / test_x.shape[0]
 	print("[{}] train LL {} valid LL {} test LL {}".format(epoch, train_ll, valid_ll, test_ll))
 	return train_ll, valid_ll, test_ll
 
