@@ -6,7 +6,7 @@ from utils import pretty_print_dictionary, dictionary_to_file
 ############################################################################
 
 
-# wandb_run = wandb.init(project="DROCN", entity="utd-ml-pgm")
+wandb_run = wandb.init(project="DROCN", entity="utd-ml-pgm")
 
 columns = ["attack_type", "perturbations", "standard_mean_ll", "standard_std_ll",
 		   "ls1_mean_ll", "ls1_std_ll", "ls3_mean_ll", "ls3_std_ll", "ls5_mean_ll", "ls5_std_ll",
@@ -44,7 +44,6 @@ def test_cnet(run_id, specific_datasets=None, is_adv=False, train_attack_type=No
 	else:
 		specific_datasets = [specific_datasets] if type(specific_datasets) is not list else specific_datasets
 
-	results = dict()
 	for dataset_name in specific_datasets:
 		dataset_wandb_tables = fetch_wandb_table(dataset_name)
 		ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
@@ -56,8 +55,8 @@ def test_cnet(run_id, specific_datasets=None, is_adv=False, train_attack_type=No
 
 		trained_clean_cnet = CN.load_pretrained_cnet(run_id, dataset_name, attack_type=CLEAN, perturbations=0)
 		if trained_clean_cnet is None:
-			trained_clean_cnet = CN.train_cnet(run_id, dataset_name, train_x, valid_x, test_x, perturbations,
-											   attack_type=CLEAN, is_adv=False)
+			trained_clean_cnet = CN.train_cnet(run_id, trained_clean_cnet, dataset_name, train_x, valid_x, test_x,
+											   perturbations, attack_type=CLEAN, is_adv=False)
 
 		trained_adv_cnet = trained_clean_cnet
 		if is_adv:
@@ -66,7 +65,7 @@ def test_cnet(run_id, specific_datasets=None, is_adv=False, train_attack_type=No
 													   perturbations=perturbations)
 			if trained_adv_cnet is None:
 				evaluation_message("Training adversarial cnet with attack type {}".format(train_attack_type))
-				trained_adv_cnet = CN.train_cnet(run_id, dataset_name, train_x, valid_x, test_x,
+				trained_adv_cnet = CN.train_cnet(run_id, trained_clean_cnet, dataset_name, train_x, valid_x, test_x,
 												 perturbations, attack_type=train_attack_type, is_adv=True)
 			else:
 				evaluation_message("Loaded pretrained cnet for the configuration")
@@ -174,13 +173,13 @@ if __name__ == '__main__':
 					"Logging values for {}, perturbation {}, train attack type {}".format(dataset_name, perturbation,
 																						  train_attack_type))
 				if perturbation != 0:
-					test_cnet(run_id=1351, specific_datasets=dataset_name, is_adv=True,
+					test_cnet(run_id=1451, specific_datasets=dataset_name, is_adv=True,
 							  train_attack_type=train_attack_type, perturbations=perturbation)
 				elif perturbation == 0:
-					test_cnet(run_id=1351, specific_datasets=dataset_name, is_adv=False,
+					test_cnet(run_id=1451, specific_datasets=dataset_name, is_adv=False,
 							  train_attack_type=train_attack_type, perturbations=perturbation)
 
 		dataset_wandb_tables = fetch_wandb_table(dataset_name)
 		ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
 
-	# wandb_run.log({"{}-LL".format(dataset_name): ll_table})
+		wandb_run.log({"{}-LL".format(dataset_name): ll_table})

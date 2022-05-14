@@ -6,6 +6,8 @@ Define the Chow_liu Tree class
 
 from __future__ import print_function
 
+import random
+
 from CN.Util import *
 
 import CN.utilM as utilM
@@ -356,8 +358,8 @@ class CLT:
 		root = self.topo_order[0]
 		gradient_root = (adv_xcounts[root, 0] / adv_cond_cpt[0, 0, 1]) - (adv_xcounts[root, 1] / adv_cond_cpt[0, 1, 1])
 
-		adv_cond_cpt[0, 0, 0] = clip_probability(adv_cond_cpt[0, 0, 0] - eta * gradient_root)
-		adv_cond_cpt[0, 0, 1] = clip_probability(adv_cond_cpt[0, 0, 1] - eta * gradient_root)
+		adv_cond_cpt[0, 0, 0] = clip_probability(adv_cond_cpt[0, 0, 0] + eta * gradient_root)
+		adv_cond_cpt[0, 0, 1] = clip_probability(adv_cond_cpt[0, 0, 1] + eta * gradient_root)
 		adv_cond_cpt[0, 1, :] = 1 - adv_cond_cpt[0, 0, :]
 
 		for i in range(1, nvariables):
@@ -372,7 +374,7 @@ class CLT:
 				gradient00 = (adv_xycounts[x, y, 0, 0] / adv_cond_cpt[i, 0, 0]) - (
 						adv_xycounts[x, y, 1, 0] / adv_cond_cpt[i, 1, 0])
 
-				adv_cond_cpt[i, 0, 0] = clip_probability(adv_cond_cpt[i, 0, 0] - eta * gradient00)
+				adv_cond_cpt[i, 0, 0] = clip_probability(adv_cond_cpt[i, 0, 0] + eta * gradient00)
 				adv_cond_cpt[i, 1, 0] = 1 - adv_cond_cpt[i, 0, 0]
 
 			if self.xprob[y, 1] == 0:
@@ -383,10 +385,41 @@ class CLT:
 				gradient01 = (adv_xycounts[x, y, 0, 1] / adv_cond_cpt[i, 0, 1]) - (
 						adv_xycounts[x, y, 1, 1] / adv_cond_cpt[i, 1, 1])
 
-				adv_cond_cpt[i, 0, 1] = clip_probability(adv_cond_cpt[i, 0, 1] - eta * gradient01)
+				adv_cond_cpt[i, 0, 1] = clip_probability(adv_cond_cpt[i, 0, 1] + eta * gradient01)
 				adv_cond_cpt[i, 1, 1] = 1 - adv_cond_cpt[i, 0, 1]
 
 		self.cond_cpt = adv_cond_cpt
+		self.log_cond_cpt = np.log(self.cond_cpt)
+
+	def randomize(self, ids):
+		nvariables = self.nvariables
+
+		rand_cond_cpt = np.copy(self.cond_cpt)
+
+		rand_cond_cpt[0, 0, 0] = random.random()
+		rand_cond_cpt[0, 0, 1] = rand_cond_cpt[0, 0, 0]
+		rand_cond_cpt[0, 1, :] = 1 - rand_cond_cpt[0, 0, :]
+
+		for i in range(1, nvariables):
+			x = self.topo_order[i]
+			y = self.parents[x]
+
+			# id, child, parent
+			if self.xprob[y, 0] == 0:
+				rand_cond_cpt[i, 0, 0] = 0
+				rand_cond_cpt[i, 1, 0] = 0
+			else:
+				rand_cond_cpt[i, 0, 0] = random.random()
+				rand_cond_cpt[i, 1, 0] = 1 - rand_cond_cpt[i, 0, 0]
+
+			if self.xprob[y, 1] == 0:
+				rand_cond_cpt[i, 0, 1] = 0
+				rand_cond_cpt[i, 1, 1] = 0
+			else:
+				rand_cond_cpt[i, 0, 1] = random.random()
+				rand_cond_cpt[i, 1, 1] = 1 - rand_cond_cpt[i, 0, 1]
+
+		self.cond_cpt = rand_cond_cpt
 		self.log_cond_cpt = np.log(self.cond_cpt)
 
 
