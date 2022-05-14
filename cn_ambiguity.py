@@ -65,7 +65,7 @@ def test_cnet(run_id, specific_datasets=None, is_adv=False, train_attack_type=No
 			trained_adv_cnet = CN.load_pretrained_cnet(run_id, dataset_name, attack_type=train_attack_type,
 													   perturbations=perturbations)
 			if trained_adv_cnet is None:
-				evaluation_message("Training adversarial einet with attack type {}".format(train_attack_type))
+				evaluation_message("Training adversarial cnet with attack type {}".format(train_attack_type))
 				trained_adv_cnet = CN.train_cnet(run_id, dataset_name, train_x, valid_x, test_x,
 												 perturbations, attack_type=train_attack_type, is_adv=True)
 			else:

@@ -48,6 +48,8 @@ def generate_adv_dataset(cnet, dataset_name, inputs, perturbations, combine=Fals
 		min_perturbed_idx = perturbed_idx_list[min_log_score_idx]
 		perturbed_idx_list = fetch_perturbed_idx_appended(num_dims, min_perturbed_idx)
 
+		print("Finished processing for perturbations {}".format(i+1))
+
 	perturbed_inputs = generate_perturbed_inputs(inputs, min_perturbed_idx)
 
 	if combine:

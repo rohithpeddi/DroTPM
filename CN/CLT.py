@@ -14,6 +14,8 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.sparse.csgraph import depth_first_order
 
+from CN.Util import clip_probability
+
 '''
 Class Chow-Liu Tree.
 Members:
@@ -163,23 +165,23 @@ class CLT:
     '''
 
 	def computeLL(self, dataset):
-		prob = 0.0
+		# prob = 0.0
 
-		if self.xyprob.shape[0] != dataset.shape[1]:
-			return utilM.get_tree_dataset_ll(dataset, self.topo_order, self.parents, self.log_cond_cpt)
+		# if self.xyprob.shape[0] != dataset.shape[1]:
+		return utilM.get_tree_dataset_ll(dataset, self.topo_order, self.parents, self.log_cond_cpt)
 
-		for i in range(dataset.shape[0]):
-			for x in self.topo_order:
-				assignx = dataset[i, x]
-				# if root sample from marginal
-				if self.parents[x] == -9999:
-					prob += np.log(self.xprob[x][assignx])
-				else:
-					# sample from p(x|y)
-					y = self.parents[x]
-					assigny = dataset[i, y]
-					prob += np.log(self.xyprob[x, y, assignx, assigny] / self.xprob[y, assigny])
-		return prob
+	# for i in range(dataset.shape[0]):
+	# 	for x in self.topo_order:
+	# 		assignx = dataset[i, x]
+	# 		# if root sample from marginal
+	# 		if self.parents[x] == -9999:
+	# 			prob += np.log(self.xprob[x][assignx])
+	# 		else:
+	# 			# sample from p(x|y)
+	# 			y = self.parents[x]
+	# 			assigny = dataset[i, y]
+	# 			prob += np.log(self.xyprob[x, y, assignx, assigny] / self.xprob[y, assigny])
+	# return prob
 
 	def generate_samples(self, numsamples):
 		samples = np.zeros((numsamples, self.nvariables), dtype=int)
@@ -313,6 +315,79 @@ class CLT:
 			self.edge_prob_d = Util.normalize1d_in_2d(edge_xy_counts)
 		else:
 			self.edge_prob_d = np.zeros((edges.shape[0], 2, 2))
+
+	"""
+	Class Chow-Liu Tree.
+	Members:
+		nvariables: Number of variables
+		xycounts: 
+			Sufficient statistics: counts of value assignments to all pairs of variables
+			Four dimensional array: first two dimensions are variable indexes
+			last two dimensions are value indexes 00,01,10,11
+		xcounts:
+			Sufficient statistics: counts of value assignments to each variable
+			First dimension is variable, second dimension is value index [0][1]
+		xyprob:
+			xycounts converted to probabilities by normalizing them
+		xprob:
+			xcounts converted to probabilities by normalizing them
+		topo_order:
+			Topological ordering over the variables
+		parents:
+			Parent of each node. Parent[i] gives index of parent of variable indexed by i
+			If Parent[i]=-9999 then i is the root node
+			
+		self.xycounts = np.ones((1, 1, 2, 2), dtype=int)
+		self.xcounts = np.ones((1, 2), dtype=int)
+		self.xyprob = np.zeros((1, 1, 2, 2))
+		self.xprob = np.zeros((1, 2))
+		
+		cond_cpt = np.zeros((nvariables, 2, 2))
+	"""
+
+	def sgd_update(self, adv_dataset, ids, eta):
+		nvariables = adv_dataset.shape[1]
+
+		adv_xycounts = Util.compute_xycounts(adv_dataset) + 1
+		adv_xcounts = Util.compute_xcounts(adv_dataset) + 2
+
+		adv_cond_cpt = np.copy(self.cond_cpt)
+
+		root = self.topo_order[0]
+		gradient_root = (adv_xcounts[root, 0] / adv_cond_cpt[0, 0, 1]) - (adv_xcounts[root, 1] / adv_cond_cpt[0, 1, 1])
+
+		adv_cond_cpt[0, 0, 0] = clip_probability(adv_cond_cpt[0, 0, 0] - eta * gradient_root)
+		adv_cond_cpt[0, 0, 1] = clip_probability(adv_cond_cpt[0, 0, 1] - eta * gradient_root)
+		adv_cond_cpt[0, 1, :] = 1 - adv_cond_cpt[0, 0, :]
+
+		for i in range(1, nvariables):
+			x = self.topo_order[i]
+			y = self.parents[x]
+
+			# id, child, parent
+			if self.xprob[y, 0] == 0:
+				adv_cond_cpt[i, 0, 0] = 0
+				adv_cond_cpt[i, 1, 0] = 0
+			else:
+				gradient00 = (adv_xycounts[x, y, 0, 0] / adv_cond_cpt[i, 0, 0]) - (
+						adv_xycounts[x, y, 1, 0] / adv_cond_cpt[i, 1, 0])
+
+				adv_cond_cpt[i, 0, 0] = clip_probability(adv_cond_cpt[i, 0, 0] - eta * gradient00)
+				adv_cond_cpt[i, 1, 0] = 1 - adv_cond_cpt[i, 0, 0]
+
+			if self.xprob[y, 1] == 0:
+				adv_cond_cpt[i, 0, 1] = 0
+				adv_cond_cpt[i, 1, 1] = 0
+			else:
+
+				gradient01 = (adv_xycounts[x, y, 0, 1] / adv_cond_cpt[i, 0, 1]) - (
+						adv_xycounts[x, y, 1, 1] / adv_cond_cpt[i, 1, 1])
+
+				adv_cond_cpt[i, 0, 1] = clip_probability(adv_cond_cpt[i, 0, 1] - eta * gradient01)
+				adv_cond_cpt[i, 1, 1] = 1 - adv_cond_cpt[i, 0, 1]
+
+		self.cond_cpt = adv_cond_cpt
+		self.log_cond_cpt = np.log(self.cond_cpt)
 
 
 '''

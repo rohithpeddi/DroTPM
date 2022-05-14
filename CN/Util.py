@@ -1,6 +1,8 @@
 import numpy as np
 import time
 
+from constants import DEFAULT_CLT_LOW_PROBABILITY, DEFAULT_CLT_HIGH_PROBABILITY
+
 
 class Util(object):
 	def __init__(self):
@@ -263,3 +265,12 @@ class Util(object):
 			edge_potential[x, :, :] = xyprob[x, y, :, :]
 
 		return edge_potential
+
+
+def clip_probability(parameter):
+	value = parameter
+	if parameter < 0.0:
+		value = DEFAULT_CLT_LOW_PROBABILITY
+	elif parameter > 1.0:
+		value = DEFAULT_CLT_HIGH_PROBABILITY
+	return value

@@ -1,3 +1,4 @@
+import copy
 import os
 import random
 
@@ -53,12 +54,32 @@ def save_cnet():
 # 4. Train cutset network
 def train_cnet(run_id, dataset_name, train_x, valid_x, test_x, perturbations, attack_type=CLEAN, is_adv=False):
 	# 1. Learn the structure and parameters using the original training set
-	cnet = CNET.learn_best_cutset(train_x, valid_x, test_x, max_depth=10)
+	trained_clean_cnet = CNET.learn_best_cutset(train_x, valid_x, test_x, max_depth=10)
+	trained_cnet = copy.deepcopy(trained_clean_cnet)
 	# 2. If adversarial training then
-	# if is_adv:
-	# 3. Use SGD to update parameters
+	if is_adv:
+		# 3. Fetch adversarial data
+		previous_valid_ll, current_valid_ll = 0, 0
+		for epoch in range(MAX_NUM_EPOCHS):
+			if epoch > 1 and abs(current_valid_ll - previous_valid_ll) < 1e-3:
+				break
+			adv_train_x = fetch_adv_data(trained_cnet, dataset_name, train_x, train_x, perturbations, attack_type,
+										 combine=False)
+			train_ll, valid_ll, test_ll = evaluate_lls(trained_cnet, adv_train_x, valid_x, test_x, epoch)
+			trained_cnet.sgd_update_params(adv_train_x, eta=DEFAULT_CNET_LEARNING_RATE)
 
-	return cnet
+			train_ll, valid_ll, test_ll = evaluate_lls(trained_cnet, train_x, valid_x, test_x, epoch)
+			previous_valid_ll = current_valid_ll
+			current_valid_ll = valid_ll
+	return trained_cnet
+
+
+def evaluate_lls(cnet, train_x, valid_x, test_x, epoch):
+	train_ll = np.sum(cnet.getWeights(train_x))/train_x.shape[0]
+	valid_ll = np.sum(cnet.getWeights(valid_x))/valid_x.shape[0]
+	test_ll = np.sum(cnet.getWeights(test_x))/test_x.shape[0]
+	print("[{}] train LL {} valid LL {} test LL {}".format(epoch, train_ll, valid_ll, test_ll))
+	return train_ll, valid_ll, test_ll
 
 
 def fetch_attack_method(attack_type):
@@ -93,7 +114,7 @@ def test_cnet(dataset_name, trained_cnet, data_cnet, train_data, test_data, pert
 		test_data = fetch_adv_data(data_cnet, dataset_name, train_data, test_data, perturbations, attack_type,
 								   combine=False)
 
-	test_lls = trained_cnet.computeLL_each_datapoint(test_data)
+	test_lls = trained_cnet.getWeights(test_data)
 	mean_ll, stddev_ll = get_stats(test_lls)
 	return mean_ll, stddev_ll, test_data
 
@@ -121,7 +142,7 @@ def fetch_average_likelihoods_for_data(dataset_name, trained_cnet, test_x,
 			iteration_inputs = perturbed_set.astype(int)
 
 			if perturbation in PERTURBATIONS:
-				ll_sample = trained_cnet.computeLL_each_datapoint(iteration_inputs)
+				ll_sample = trained_cnet.getWeights(iteration_inputs)
 				if perturbation not in likelihoods:
 					likelihoods[perturbation] = []
 				(likelihoods[perturbation]).append(ll_sample.mean())

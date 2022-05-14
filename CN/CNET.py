@@ -360,6 +360,41 @@ class CNET:
         ids = np.arange(self.nvariables)
         self.tree = self.learnStructureP_Helper(dataset, ids, portion_percent)
 
+    def sgd_update_params(self, adv_dataset, eta):
+        node = self.tree
+        ids = np.arange(self.nvariables)
+        node = self.sgd_update(node, adv_dataset, ids, eta)
+        self.tree = node
+
+    """
+    learnStructureHelper(self, dataset, ids):
+        curr_depth = self.n_variables - dataset.shape[1]
+    [variable, ids[variable], p0, p1, self.learnStructureHelper(new_dataset0, new_ids),
+                self.learnStructureHelper(new_dataset1, new_ids)]
+    """
+
+    def sgd_update(self, node, dataset, ids, eta):
+        if isinstance(node, list):
+            id, variable, p0, p1, node0, node1 = node
+
+            new_dataset1 = np.delete(dataset[dataset[:, id] == 1], id, 1)
+            counts1 = float(new_dataset1.shape[0]) + 1.0
+
+            new_dataset0 = np.delete(dataset[dataset[:, id] == 0], id, 1)
+            counts0 = float(new_dataset0.shape[0]) + 1.0
+
+            new_ids = np.delete(ids, id, 0)
+            gradient = (counts0/p0) - (counts1/p1)
+
+            p0 = clip_probability(p0 - eta*gradient)
+            p1 = 1-p0
+
+            return [id, variable, p0, p1, self.sgd_update(node0, new_dataset0, new_ids, eta), self.sgd_update(node1, new_dataset1, new_ids, eta)]
+        else:
+            node.sgd_update(dataset, ids, eta)
+            return node
+
+
 
 '''
    Main function for Learning Cutset Network from Data by given depth
