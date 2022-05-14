@@ -77,7 +77,7 @@ def train_cnet(run_id, trained_cnet, dataset_name, train_x, valid_x, test_x, per
 		# 4. Start gradient ascent on the concave maximization problem using sub gradient method
 		previous_train_ll, current_train_ll = 0, 0
 		for epoch in range(MAX_NUM_EPOCHS):
-			if epoch > 1 and abs(current_train_ll - previous_train_ll) < 1e-2:
+			if epoch > 1 and abs(current_train_ll - previous_train_ll) < 5e-4:
 				break
 			adv_train_x = fetch_adv_data(trained_cnet, dataset_name, train_x, train_x, perturbations, attack_type,
 										 combine=False)
