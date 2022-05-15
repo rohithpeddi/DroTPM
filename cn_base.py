@@ -15,6 +15,7 @@ from attacks.CN.random import attack as wasserstein_random_samples
 from attacks.CN.weakermodel import attack as weaker_model
 
 from CN import CNET, utilM
+from CN.Util import Util
 
 
 # 1. Load dataset
@@ -61,6 +62,17 @@ def save_cnet(run_id, trained_cnet, train_x, dataset_name, perturbations, attack
 	np.savez_compressed(filename, module=main_dict)
 
 
+def fetch_learning_rate(dataset_name, train_x):
+	xycounts = Util.compute_xycounts(train_x) + 1  # laplace correction
+	xcounts = Util.compute_xcounts(train_x) + 2  # laplace correction
+	xyprob = Util.normalize2d(xycounts)
+	xprob = Util.normalize1d(xcounts)
+
+	learning_rate = 1/max(np.max(xycounts/(1-xyprob)), np.max(xcounts/(1-xprob)))
+	print("Found optimal learning rate for dataset {} as {}, standard slow one {}".format(dataset_name, learning_rate, min(DEFAULT_CNET_LEARNING_RATE, 1 / (train_x.shape[0] * 100))))
+	return learning_rate
+
+
 # 4. Train cutset network
 def train_cnet(run_id, trained_cnet, dataset_name, train_x, valid_x, test_x, perturbations, attack_type=CLEAN,
 			   is_adv=False):
@@ -73,16 +85,16 @@ def train_cnet(run_id, trained_cnet, dataset_name, train_x, valid_x, test_x, per
 		# 3. Randomize training parameters
 		print("Keeping the structure and randomizing the parameters for the dataset {}".format(dataset_name))
 		trained_cnet.randomize_params()
+		eta = fetch_learning_rate(dataset_name, train_x)
 
 		# 4. Start gradient ascent on the concave maximization problem using sub gradient method
 		previous_train_ll, current_train_ll = 0, 0
 		for epoch in range(MAX_NUM_EPOCHS):
-			if epoch > 1 and abs(current_train_ll - previous_train_ll) < 5e-4:
+			if epoch > 1 and abs(current_train_ll - previous_train_ll) < 1e-3:
 				break
 			adv_train_x = fetch_adv_data(trained_cnet, dataset_name, train_x, train_x, perturbations, attack_type,
 										 combine=False)
-			trained_cnet.sgd_update_params(adv_train_x,
-										   eta=min(DEFAULT_CNET_LEARNING_RATE, 1 / (train_x.shape[0] * 100)))
+			trained_cnet.sgd_update_params(adv_train_x, eta=eta)
 			train_ll, valid_ll, test_ll = evaluate_lls(trained_cnet, train_x, valid_x, test_x, epoch)
 			previous_train_ll = current_train_ll
 			current_train_ll = valid_ll
