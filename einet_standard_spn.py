@@ -459,7 +459,7 @@ if __name__ == '__main__':
 		ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
 		cll_tables = dataset_wandb_tables[CONDITIONAL_LOGLIKELIHOOD_TABLES]
 
-		run1.log({"{}-LL".format(dataset_name): ll_table})
+		run1.log({"{}-AMU-LL".format(dataset_name): ll_table})
 		for evidence_percentage in EVIDENCE_PERCENTAGES:
 			cll_ev_table = cll_tables[evidence_percentage]
-			run1.log({"{}-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
+			run1.log({"{}-AMU-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
