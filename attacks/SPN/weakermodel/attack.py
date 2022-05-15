@@ -61,9 +61,9 @@ def fetch_bags_of_clts(train_x):
 	return clt_bag
 
 
-def generate_adv_dataset(einet, dataset_name, test_data, test_labels, perturbations, device, combine=False,
+def generate_adv_dataset(einet, dataset_name, inputs, test_labels, perturbations, device, combine=False,
 						 batched=False, train_data=None):
-	adv_inputs = test_data.detach().clone()
+	adv_inputs = inputs.detach().clone()
 
 	batch_size = int(10000 / adv_inputs.shape[1]) if batched else 1
 
@@ -77,8 +77,8 @@ def generate_adv_dataset(einet, dataset_name, test_data, test_labels, perturbati
 		desc='Generating adv samples for {}'.format(dataset_name), unit='batch'
 	)
 	perturbed_inputs = []
-	for inputs in data_loader:
-		adv_sample = generate_adversarial_sample_batched(clts_bag, inputs[0], perturbations)
+	for batched_inputs in data_loader:
+		adv_sample = generate_adversarial_sample_batched(clts_bag, batched_inputs[0], perturbations)
 		if len(perturbed_inputs) == 0:
 			perturbed_inputs = adv_sample
 		else:
