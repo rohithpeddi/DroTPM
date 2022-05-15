@@ -11,6 +11,8 @@ from __future__ import print_function
 
 import random
 
+import numpy as np
+
 import datasets
 from CN.Util import *
 from CN.CLT import CLT
@@ -363,10 +365,8 @@ class CNET:
 		self.tree = self.learnStructureP_Helper(dataset, ids, portion_percent)
 
 	def sgd_update_params(self, adv_dataset, eta):
-		node = self.tree
 		ids = np.arange(self.nvariables)
-		node = self.sgd_update(node, adv_dataset, ids, eta)
-		self.tree = node
+		self.sgd_update(self.tree, adv_dataset, ids, eta, adv_dataset.shape[0])
 
 	"""
     learnStructureHelper(self, dataset, ids):
@@ -375,47 +375,63 @@ class CNET:
                 self.learnStructureHelper(new_dataset1, new_ids)]
     """
 
-	def sgd_update(self, node, dataset, ids, eta):
+	def sgd_update(self, node, dataset, ids, eta, N):
+		if dataset.shape[0] == 0:
+			return
+
+		# internal nodes, not reach the leaf
 		if isinstance(node, list):
-			id, variable, p0, p1, node0, node1 = node
+			id, x, p0, p1, node0, node1 = node
+			index1 = np.where(dataset[:, x] == 1)[0]
+			index0 = np.where(dataset[:, x] == 0)[0]
 
-			new_dataset1 = np.delete(dataset[dataset[:, id] == 1], id, 1)
-			counts1 = float(new_dataset1.shape[0]) + 1.0
+			new_dataset1 = dataset[index1]
+			new_dataset0 = dataset[index0]
 
-			new_dataset0 = np.delete(dataset[dataset[:, id] == 0], id, 1)
-			counts0 = float(new_dataset0.shape[0]) + 1.0
+			counts1 = len(index1) / N
+			counts0 = len(index0) / N
 
-			new_ids = np.delete(ids, id, 0)
 			gradient = (counts0 / p0) - (counts1 / p1)
 
 			p0 = clip_probability(p0 + eta * gradient)
 			p1 = 1 - p0
 
-			return [id, variable, p0, p1, self.sgd_update(node0, new_dataset0, new_ids, eta),
-					self.sgd_update(node1, new_dataset1, new_ids, eta)]
+			node[2] = p0
+			node[3] = p1
+
+			new_ids = np.delete(ids, id)
+
+			self.sgd_update(node0, new_dataset0, new_ids, eta, N)
+			self.sgd_update(node1, new_dataset1, new_ids, eta, N)
+
 		else:
-			node.sgd_update(dataset, ids, eta)
-			return node
+			clt_dataset = dataset[:, ids]
+			node.sgd_update(clt_dataset, ids, eta, N)
+			# node.update_exact(clt_dataset, weights=np.array([]), structure_update_flag=False)
+			return
 
 	def randomize_params(self):
-		node = self.tree
 		ids = np.arange(self.nvariables)
-		node = self.randomize(node, ids)
-		self.tree = node
+		self.randomize(self.tree, ids)
 
 	def randomize(self, node, ids):
 		if isinstance(node, list):
 			id, variable, p0, p1, node0, node1 = node
 
-			new_ids = np.delete(ids, id, 0)
+			new_ids = np.delete(ids, id)
 
-			p0 = random.random()
+			p0 = random.randint(1000, 9000) / 10000
 			p1 = 1 - p0
 
-			return [id, variable, p0, p1, self.randomize(node0, new_ids), self.randomize(node0, new_ids)]
+			node[2] = p0
+			node[3] = p1
+
+			self.randomize(node0, new_ids)
+			self.randomize(node1, new_ids)
+
 		else:
 			node.randomize(ids)
-			return node
+			return
 
 
 '''

@@ -39,7 +39,7 @@ def fetch_wandb_table(dataset_name):
 	return wandb_tables[dataset_name]
 
 
-def test_cnet(run_id, specific_datasets=None, is_adv=False, train_attack_type=None, perturbations=None):
+def test_cnet(run_id, specific_datasets=None, is_adv=False, train_attack_type=None, perturbations=None, learning_rate=None):
 	if specific_datasets is None:
 		specific_datasets = DISCRETE_DATASETS
 	else:
@@ -57,7 +57,7 @@ def test_cnet(run_id, specific_datasets=None, is_adv=False, train_attack_type=No
 		trained_clean_cnet = CN.load_pretrained_cnet(run_id, dataset_name, attack_type=CLEAN, perturbations=0)
 		if trained_clean_cnet is None:
 			trained_clean_cnet = CN.train_cnet(run_id, trained_clean_cnet, dataset_name, train_x, valid_x, test_x,
-											   perturbations, attack_type=CLEAN, is_adv=False)
+											   perturbations, attack_type=CLEAN, is_adv=False, learning_rate=learning_rate)
 
 		trained_adv_cnet = trained_clean_cnet
 		if is_adv:
@@ -65,9 +65,9 @@ def test_cnet(run_id, specific_datasets=None, is_adv=False, train_attack_type=No
 			trained_adv_cnet = CN.load_pretrained_cnet(run_id, dataset_name, attack_type=train_attack_type,
 													   perturbations=perturbations)
 			if trained_adv_cnet is None:
-				evaluation_message("Training adversarial cnet with attack type {}".format(train_attack_type))
+				evaluation_message("Training adversarial cnet with attack type {}, perturbations {}".format(train_attack_type, perturbations))
 				trained_adv_cnet = CN.train_cnet(run_id, trained_clean_cnet, dataset_name, train_x, valid_x, test_x,
-												 perturbations, attack_type=train_attack_type, is_adv=True)
+												 perturbations, attack_type=train_attack_type, is_adv=True, learning_rate=learning_rate)
 			else:
 				evaluation_message("Loaded pretrained cnet for the configuration")
 
@@ -163,13 +163,15 @@ if __name__ == '__main__':
 
 	parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 	parser.add_argument('--dataset', type=str, required=True, help="dataset name")
-	parser.add_argument('--runid', type=str, required=True, help="dataset name")
+	parser.add_argument('--runid', type=str, required=True, help="run id")
+	parser.add_argument('--lr', type=str, required=True, help="learning rate")
 
 	ARGS = parser.parse_args()
 	print(ARGS)
 
 	dataset_name = ARGS.dataset
 	run_id = ARGS.runid
+	lr = float(ARGS.lr)
 
 	# for dataset_name in DEBD_DATASETS:
 	for perturbation in PERTURBATIONS:
@@ -185,12 +187,12 @@ if __name__ == '__main__':
 																					  train_attack_type))
 			if perturbation != 0:
 				test_cnet(run_id=1451, specific_datasets=dataset_name, is_adv=True,
-						  train_attack_type=train_attack_type, perturbations=perturbation)
+						  train_attack_type=train_attack_type, perturbations=perturbation, learning_rate=lr)
 			elif perturbation == 0:
 				test_cnet(run_id=1451, specific_datasets=dataset_name, is_adv=False,
-						  train_attack_type=train_attack_type, perturbations=perturbation)
+						  train_attack_type=train_attack_type, perturbations=perturbation, learning_rate=lr)
 
 	dataset_wandb_tables = fetch_wandb_table(dataset_name)
 	ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
 
-	wandb_run.log({"{}-AMU-LL".format(dataset_name): ll_table})
+	wandb_run.log({"{}-{}-AMU-LL".format(dataset_name, lr): ll_table})

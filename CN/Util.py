@@ -271,6 +271,8 @@ def clip_probability(parameter):
 	value = parameter
 	if parameter < 0.0:
 		value = DEFAULT_CLT_LOW_PROBABILITY
+		print("Clipped {}".format(parameter))
 	elif parameter > 1.0:
 		value = DEFAULT_CLT_HIGH_PROBABILITY
+		print("Clipped {}".format(parameter))
 	return value

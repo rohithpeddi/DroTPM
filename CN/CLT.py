@@ -150,7 +150,7 @@ class CLT:
 			self.xcounts = Util.compute_weighted_xcounts(dataset_, weights) + 2.0 * smooth
 		else:
 			dataset = dataset_
-			print("Not using weight to update")
+			# print("Not using weight to update")
 			self.xycounts += Util.compute_xycounts(dataset)
 			self.xcounts += Util.compute_xcounts(dataset)
 
@@ -168,22 +168,23 @@ class CLT:
 
 	def computeLL(self, dataset):
 		# prob = 0.0
-
+		#
 		# if self.xyprob.shape[0] != dataset.shape[1]:
+		# 	return utilM.get_tree_dataset_ll(dataset, self.topo_order, self.parents, self.log_cond_cpt)
+		#
+		# for i in range(dataset.shape[0]):
+		# 	for x in self.topo_order:
+		# 		assignx = dataset[i, x]
+		# 		# if root sample from marginal
+		# 		if self.parents[x] == -9999:
+		# 			prob += np.log(self.xprob[x][assignx])
+		# 		else:
+		# 			# sample from p(x|y)
+		# 			y = self.parents[x]
+		# 			assigny = dataset[i, y]
+		# 			prob += np.log(self.xyprob[x, y, assignx, assigny] / self.xprob[y, assigny])
+		# return prob
 		return utilM.get_tree_dataset_ll(dataset, self.topo_order, self.parents, self.log_cond_cpt)
-
-	# for i in range(dataset.shape[0]):
-	# 	for x in self.topo_order:
-	# 		assignx = dataset[i, x]
-	# 		# if root sample from marginal
-	# 		if self.parents[x] == -9999:
-	# 			prob += np.log(self.xprob[x][assignx])
-	# 		else:
-	# 			# sample from p(x|y)
-	# 			y = self.parents[x]
-	# 			assigny = dataset[i, y]
-	# 			prob += np.log(self.xyprob[x, y, assignx, assigny] / self.xprob[y, assigny])
-	# return prob
 
 	def generate_samples(self, numsamples):
 		samples = np.zeros((numsamples, self.nvariables), dtype=int)
@@ -298,7 +299,7 @@ class CLT:
 		return utilM.get_edge_prob(self.topo_order, self.parents, cond_cpt, edges)
 
 	"""
-        For knowing the structure, update paramter only from data and TUM
+        For knowing the structure, update parameter only from data and TUM
     """
 
 	def learnParm_DT(self, tum, dataset, evid_list, ids):
@@ -347,8 +348,8 @@ class CLT:
 		cond_cpt = np.zeros((nvariables, 2, 2))
 	"""
 
-	def sgd_update(self, adv_dataset, ids, eta):
-		nvariables = adv_dataset.shape[1]
+	def sgd_update(self, adv_dataset, ids, eta, N):
+		nvariables = self.nvariables
 
 		adv_xycounts = Util.compute_xycounts(adv_dataset) + 1
 		adv_xcounts = Util.compute_xcounts(adv_dataset) + 2
@@ -356,7 +357,7 @@ class CLT:
 		adv_cond_cpt = np.copy(self.cond_cpt)
 
 		root = self.topo_order[0]
-		gradient_root = (adv_xcounts[root, 0] / adv_cond_cpt[0, 0, 1]) - (adv_xcounts[root, 1] / adv_cond_cpt[0, 1, 1])
+		gradient_root = ((adv_xcounts[root, 0] / adv_cond_cpt[0, 0, 1]) - (adv_xcounts[root, 1] / adv_cond_cpt[0, 1, 1]))/N
 
 		adv_cond_cpt[0, 0, 0] = clip_probability(adv_cond_cpt[0, 0, 0] + eta * gradient_root)
 		adv_cond_cpt[0, 0, 1] = clip_probability(adv_cond_cpt[0, 0, 1] + eta * gradient_root)
@@ -371,8 +372,8 @@ class CLT:
 				adv_cond_cpt[i, 0, 0] = 0
 				adv_cond_cpt[i, 1, 0] = 0
 			else:
-				gradient00 = (adv_xycounts[x, y, 0, 0] / adv_cond_cpt[i, 0, 0]) - (
-						adv_xycounts[x, y, 1, 0] / adv_cond_cpt[i, 1, 0])
+				gradient00 = ((adv_xycounts[x, y, 0, 0] / adv_cond_cpt[i, 0, 0]) - (
+						adv_xycounts[x, y, 1, 0] / adv_cond_cpt[i, 1, 0]))/N
 
 				adv_cond_cpt[i, 0, 0] = clip_probability(adv_cond_cpt[i, 0, 0] + eta * gradient00)
 				adv_cond_cpt[i, 1, 0] = 1 - adv_cond_cpt[i, 0, 0]
@@ -382,8 +383,8 @@ class CLT:
 				adv_cond_cpt[i, 1, 1] = 0
 			else:
 
-				gradient01 = (adv_xycounts[x, y, 0, 1] / adv_cond_cpt[i, 0, 1]) - (
-						adv_xycounts[x, y, 1, 1] / adv_cond_cpt[i, 1, 1])
+				gradient01 = ((adv_xycounts[x, y, 0, 1] / adv_cond_cpt[i, 0, 1]) - (
+						adv_xycounts[x, y, 1, 1] / adv_cond_cpt[i, 1, 1]))/N
 
 				adv_cond_cpt[i, 0, 1] = clip_probability(adv_cond_cpt[i, 0, 1] + eta * gradient01)
 				adv_cond_cpt[i, 1, 1] = 1 - adv_cond_cpt[i, 0, 1]
@@ -396,7 +397,7 @@ class CLT:
 
 		rand_cond_cpt = np.copy(self.cond_cpt)
 
-		rand_cond_cpt[0, 0, 0] = random.random()
+		rand_cond_cpt[0, 0, 0] = random.randint(1000, 9000)/10000
 		rand_cond_cpt[0, 0, 1] = rand_cond_cpt[0, 0, 0]
 		rand_cond_cpt[0, 1, :] = 1 - rand_cond_cpt[0, 0, :]
 
@@ -409,14 +410,14 @@ class CLT:
 				rand_cond_cpt[i, 0, 0] = 0
 				rand_cond_cpt[i, 1, 0] = 0
 			else:
-				rand_cond_cpt[i, 0, 0] = random.random()
+				rand_cond_cpt[i, 0, 0] = random.randint(1000, 9000)/10000
 				rand_cond_cpt[i, 1, 0] = 1 - rand_cond_cpt[i, 0, 0]
 
 			if self.xprob[y, 1] == 0:
 				rand_cond_cpt[i, 0, 1] = 0
 				rand_cond_cpt[i, 1, 1] = 0
 			else:
-				rand_cond_cpt[i, 0, 1] = random.random()
+				rand_cond_cpt[i, 0, 1] = random.randint(1000, 9000)/10000
 				rand_cond_cpt[i, 1, 1] = 1 - rand_cond_cpt[i, 0, 1]
 
 		self.cond_cpt = rand_cond_cpt
