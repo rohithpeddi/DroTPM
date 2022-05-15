@@ -38,6 +38,9 @@ def load_pretrained_cnet(run_id, dataset_name, attack_type, perturbations, speci
 		if attack_type == AMBIGUITY_SET_UNIFORM:
 			RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id),
 											   AMU_CNET_MODEL_DIRECTORY + "/{}".format(perturbations))
+		elif attack_type == WASSERSTEIN_RANDOM_SAMPLES:
+			RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id),
+											   WASSERSTEIN_SAMPLES_CNET_MODEL_DIRECTORY + "/{}".format(perturbations))
 
 		if attack_type == WASSERSTEIN_RANDOM_SAMPLES:
 			file_name = os.path.join(RUN_MODEL_DIRECTORY, "{}_adv.npz".format(specific_filename))
