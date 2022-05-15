@@ -351,13 +351,13 @@ class CLT:
 	def sgd_update(self, adv_dataset, ids, eta, N):
 		nvariables = self.nvariables
 
-		adv_xycounts = Util.compute_xycounts(adv_dataset) + 1
-		adv_xcounts = Util.compute_xcounts(adv_dataset) + 2
+		adv_xycounts = (Util.compute_xycounts(adv_dataset) + 1)/N
+		adv_xcounts = (Util.compute_xcounts(adv_dataset) + 2)/N
 
 		adv_cond_cpt = np.copy(self.cond_cpt)
 
 		root = self.topo_order[0]
-		gradient_root = ((adv_xcounts[root, 0] / adv_cond_cpt[0, 0, 1]) - (adv_xcounts[root, 1] / adv_cond_cpt[0, 1, 1]))/N
+		gradient_root = (adv_xcounts[root, 0] / adv_cond_cpt[0, 0, 1]) - (adv_xcounts[root, 1] / adv_cond_cpt[0, 1, 1])
 
 		adv_cond_cpt[0, 0, 0] = clip_probability(adv_cond_cpt[0, 0, 0] + eta * gradient_root)
 		adv_cond_cpt[0, 0, 1] = clip_probability(adv_cond_cpt[0, 0, 1] + eta * gradient_root)
@@ -372,8 +372,8 @@ class CLT:
 				adv_cond_cpt[i, 0, 0] = 0
 				adv_cond_cpt[i, 1, 0] = 0
 			else:
-				gradient00 = ((adv_xycounts[x, y, 0, 0] / adv_cond_cpt[i, 0, 0]) - (
-						adv_xycounts[x, y, 1, 0] / adv_cond_cpt[i, 1, 0]))/N
+				gradient00 = (adv_xycounts[x, y, 0, 0] / adv_cond_cpt[i, 0, 0]) - (
+						adv_xycounts[x, y, 1, 0] / adv_cond_cpt[i, 1, 0])
 
 				adv_cond_cpt[i, 0, 0] = clip_probability(adv_cond_cpt[i, 0, 0] + eta * gradient00)
 				adv_cond_cpt[i, 1, 0] = 1 - adv_cond_cpt[i, 0, 0]
@@ -383,8 +383,8 @@ class CLT:
 				adv_cond_cpt[i, 1, 1] = 0
 			else:
 
-				gradient01 = ((adv_xycounts[x, y, 0, 1] / adv_cond_cpt[i, 0, 1]) - (
-						adv_xycounts[x, y, 1, 1] / adv_cond_cpt[i, 1, 1]))/N
+				gradient01 = (adv_xycounts[x, y, 0, 1] / adv_cond_cpt[i, 0, 1]) - (
+						adv_xycounts[x, y, 1, 1] / adv_cond_cpt[i, 1, 1])
 
 				adv_cond_cpt[i, 0, 1] = clip_probability(adv_cond_cpt[i, 0, 1] + eta * gradient01)
 				adv_cond_cpt[i, 1, 1] = 1 - adv_cond_cpt[i, 0, 1]
