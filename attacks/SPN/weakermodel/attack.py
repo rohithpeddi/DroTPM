@@ -83,7 +83,7 @@ def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, dev
 			perturbed_inputs = adv_sample
 		else:
 			perturbed_inputs = np.concatenate((perturbed_inputs, adv_sample), axis=0)
-	perturbed_inputs = torch.tensor(perturbed_inputs, device=torch.device(device))
+	perturbed_inputs = torch.tensor(perturbed_inputs, device=torch.device(device), dtype=torch.float32)
 	if combine:
 		return torch.cat((adv_inputs, perturbed_inputs))
 	else:

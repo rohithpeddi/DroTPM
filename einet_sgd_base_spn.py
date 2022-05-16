@@ -191,22 +191,22 @@ def load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, a
 		return None
 
 
-def epoch_einet_train(train_dataloader, einet, epoch, dataset_name, weight=1, optimizer=None):
-	train_dataloader = tqdm(
-		train_dataloader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
-		desc='Training epoch : {}, for dataset : {}'.format(epoch, dataset_name),
-		unit='batch'
-	)
-	einet.train()
-	for inputs in train_dataloader:
-		optimizer.zero_grad()
-		outputs = einet.forward(inputs[0])
-		ll_sample = weight * EinsumNetwork.log_likelihoods(outputs)
-		log_likelihood = ll_sample.sum()
-
-		objective = -log_likelihood
-		objective.backward()
-		optimizer.step()
+# def epoch_einet_train(train_dataloader, einet, epoch, dataset_name, weight=1, optimizer=None):
+# 	train_dataloader = tqdm(
+# 		train_dataloader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
+# 		desc='Training epoch : {}, for dataset : {}'.format(epoch, dataset_name),
+# 		unit='batch'
+# 	)
+# 	einet.train()
+# 	for inputs in train_dataloader:
+# 		optimizer.zero_grad()
+# 		outputs = einet.forward(inputs[0])
+# 		ll_sample = weight * EinsumNetwork.log_likelihoods(outputs)
+# 		log_likelihood = ll_sample.sum()
+#
+# 		objective = -log_likelihood
+# 		objective.backward()
+# 		optimizer.step()
 
 
 def evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=0):
@@ -225,7 +225,7 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 	RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id), EINET_MODEL_DIRECTORY)
 
 	if attack_type in [AMBIGUITY_SET_UNIFORM, NEURAL_NET, LOCAL_SEARCH, RESTRICTED_LOCAL_SEARCH,
-					   WASSERSTEIN_RANDOM_SAMPLES]:
+					   WASSERSTEIN_RANDOM_SAMPLES, WASSERSTEIN_META]:
 		if attack_type == NEURAL_NET:
 			sub_directory_name = NEURAL_NETWORK_ATTACK_MODEL_SUB_DIRECTORY
 		elif attack_type == LOCAL_SEARCH:
@@ -236,6 +236,9 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 			sub_directory_name = AMBIGUITY_SET_UNIFORM_ATTACK_MODEL_SUB_DIRECTORY
 		elif attack_type == WASSERSTEIN_RANDOM_SAMPLES:
 			sub_directory_name = WASSERSTEIN_RANDOM_SAMPLES_ATTACK_MODEL_SUB_DIRECTORY
+		elif attack_type == WASSERSTEIN_META:
+			sub_directory_name = WASSERSTEIN_META_ATTACK_MODEL_SUB_DIRECTORY
+
 		ATTACK_SUB_DIRECTORY = os.path.join(RUN_MODEL_DIRECTORY, sub_directory_name)
 		ATTACK_MODEL_DIRECTORY = os.path.join(ATTACK_SUB_DIRECTORY, "{}".format(perturbations))
 	else:
@@ -267,11 +270,11 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 	return
 
 
-def train_einet_dro(run_id, structure, dataset_name, einet, train_labels, train_x, valid_x, test_x, einet_args,
-					perturbations, device, attack_type=CLEAN, batch_size=DEFAULT_TRAIN_BATCH_SIZE, is_adv=False):
+def train_einet_meta_dro(run_id, structure, dataset_name, einet, train_labels, train_x, valid_x, test_x, einet_args,
+						 perturbations, device, attack_type=CLEAN, batch_size=DEFAULT_TRAIN_BATCH_SIZE, is_adv=False):
 	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE, filepath=EARLY_STOPPING_FILE,
 								   delta=EARLY_STOPPING_DELTA)
-	optimizer = optim.Adam(list(einet.parameters()), lr=SGD_LEARNING_RATE, weight_decay=SGD_WEIGHT_DECAY)
+	optimizer = optim.Adam(list(einet.parameters()), lr=einet_args[BATCH_SIZE], weight_decay=einet_args[WEIGHT_DECAY])
 
 	train_dataset = TensorDataset(train_x)
 	train_dataloader = DataLoader(train_dataset, batch_size, shuffle=False)
@@ -305,7 +308,7 @@ def train_einet_dro(run_id, structure, dataset_name, einet, train_labels, train_
 				# 1. Construct new batch
 				# Greedy step in choosing the places to flip based on gradients
 				adv_batch = batch_input.detach().clone()
-				scored_input = torch.mul((-2*adv_batch+1), meta_gradients[(batch_size * batch_counter): (batch_size * (batch_counter + 1)), :])
+				scored_input = torch.mul((-2*adv_batch+1), meta_gradients[(batch_size * batch_counter): min(train_x.shape[0], (batch_size * (batch_counter + 1))), :])
 				num_dims = train_x.shape[1]
 				(values, indices) = torch.topk(scored_input.view(1, -1), (adv_batch.shape[0])*perturbations)
 				row_change_count_dict = {}
@@ -318,13 +321,13 @@ def train_einet_dro(run_id, structure, dataset_name, einet, train_labels, train_
 						continue
 					else:
 						row_change_count_dict[row] += 1
-					adv_batch[row, column] = 1-adv_batch[row, column]
+					adv_batch[row, column] = 1.0 - adv_batch[row, column]
 
-				# Evaluation check
-				einet.eval()
-				original_log_likelihood = EinsumNetwork.eval_loglikelihood_batched(einet, batch_input, batch_size=EVAL_BATCH_SIZE)
-				adv_log_likelihood = EinsumNetwork.eval_loglikelihood_batched(einet, adv_batch, batch_size=EVAL_BATCH_SIZE)
-				# print("Decreased log score {} ".format(original_log_likelihood-adv_log_likelihood))
+				# # Evaluation check
+				# einet.eval()
+				# original_log_likelihood = EinsumNetwork.eval_loglikelihood_batched(einet, batch_input, batch_size=EVAL_BATCH_SIZE)
+				# adv_log_likelihood = EinsumNetwork.eval_loglikelihood_batched(einet, adv_batch, batch_size=EVAL_BATCH_SIZE)
+				# print("Decreased log score on adv_batch {} ".format(original_log_likelihood-adv_log_likelihood))
 
 				# 2. Forward new batch
 				# 3. Define objective
@@ -355,33 +358,35 @@ def train_einet_dro(run_id, structure, dataset_name, einet, train_labels, train_
 	return einet
 
 
-def train_einet(run_id, structure, dataset_name, einet, train_labels, train_x, valid_x, test_x, einet_args,
-				perturbations, device, attack_type=CLEAN, batch_size=DEFAULT_TRAIN_BATCH_SIZE, is_adv=False):
-	patience = 1 if is_adv else DEFAULT_EINET_PATIENCE
-
-	early_stopping = EarlyStopping(einet, patience=patience, filepath=EARLY_STOPPING_FILE,
-								   delta=EARLY_STOPPING_DELTA)
-	optimizer = optim.Adam(list(einet.parameters()), lr=SGD_LEARNING_RATE, weight_decay=SGD_WEIGHT_DECAY)
-
-	train_dataset = TensorDataset(train_x)
-	NUM_EPOCHS = MAX_NUM_EPOCHS
-	for epoch_count in range(NUM_EPOCHS):
-		train_dataloader = DataLoader(train_dataset, batch_size, shuffle=False)
-		epoch_einet_train(train_dataloader, einet, epoch_count, dataset_name, weight=1, optimizer=optimizer)
-		train_ll, valid_ll, test_ll = evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=epoch_count)
-		if epoch_count > 1:
-			early_stopping(-valid_ll, epoch_count)
-			if early_stopping.should_stop and epoch_count > 5:
-				print("Early Stopping... {}".format(early_stopping))
-				break
-		if is_adv:
-			print("Fetching adversarial data, training epoch {}".format(epoch_count))
-			train_dataset = fetch_adv_data(einet, dataset_name, train_x, train_x, train_labels, perturbations,
-										   attack_type, device, TRAIN_DATASET, combine=False)
-
-	save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attack_type, perturbations)
-
-	return einet
+# def train_einet(run_id, structure, dataset_name, einet, train_labels, train_x, valid_x, test_x, einet_args,
+# 						 perturbations, device, attack_type=CLEAN, batch_size=DEFAULT_TRAIN_BATCH_SIZE, is_adv=False):
+# 	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE, filepath=EARLY_STOPPING_FILE,
+# 								   delta=EARLY_STOPPING_DELTA)
+# 	optimizer = optim.Adam(list(einet.parameters()), lr=einet_args[BATCH_SIZE], weight_decay=einet_args[WEIGHT_DECAY])
+# 	train_dataset = TensorDataset(train_x)
+# 	for epoch_count in range(MAX_NUM_EPOCHS):
+# 		train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True)
+# 		train_dataloader = tqdm(
+# 			train_dataloader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
+# 			desc='Training epoch : {}, for dataset : {}'.format(epoch_count, dataset_name),
+# 			unit='batch'
+# 		)
+# 		einet.train()
+# 		for inputs in train_dataloader:
+# 			optimizer.zero_grad()
+# 			outputs = einet.forward(inputs[0])
+# 			log_likelihood = outputs.sum()
+# 			objective = -log_likelihood
+# 			objective.backward()
+# 			optimizer.step()
+# 		train_ll, valid_ll, test_ll = evaluate_lls(einet, train_x, valid_x, test_x,
+# 													   epoch_count=epoch_count)
+# 		if epoch_count > 1:
+# 			early_stopping(-valid_ll, epoch_count)
+# 			if early_stopping.should_stop:
+# 				print("Early Stopping... {}".format(early_stopping))
+# 				break
+# 	return einet
 
 
 def fetch_attack_method(attack_type):
