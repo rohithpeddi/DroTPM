@@ -88,8 +88,8 @@ def load_dataset(dataset_name, device):
 
 
 def load_structure(run_id, structure, dataset_name, structure_args):
-	# RUN_STRUCTURE_DIRECTORY = os.path.join("run_{}".format(run_id), STRUCTURE_DIRECTORY)
-	RUN_STRUCTURE_DIRECTORY = os.path.join("", STRUCTURE_DIRECTORY)
+	RUN_STRUCTURE_DIRECTORY = os.path.join("run_{}".format(run_id), STRUCTURE_DIRECTORY)
+	# RUN_STRUCTURE_DIRECTORY = os.path.join("", STRUCTURE_DIRECTORY)
 	mkdir_p(RUN_STRUCTURE_DIRECTORY)
 	graph = None
 	if structure == POON_DOMINGOS:
