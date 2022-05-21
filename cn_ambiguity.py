@@ -2,12 +2,11 @@ import wandb
 import cn_base as CN
 from constants import *
 import argparse
-from utils import pretty_print_dictionary, dictionary_to_file
 
 ############################################################################
 
 
-wandb_run = wandb.init(project="DROCN", entity="utd-ml-pgm")
+# wandb_run = wandb.init(project="DROCN", entity="utd-ml-pgm")
 
 columns = ["attack_type", "perturbations", "standard_mean_ll", "standard_std_ll",
 		   "ls1_mean_ll", "ls1_std_ll", "ls3_mean_ll", "ls3_std_ll", "ls5_mean_ll", "ls5_std_ll",
@@ -176,6 +175,7 @@ if __name__ == '__main__':
 	# for dataset_name in DEBD_DATASETS:
 	for perturbation in PERTURBATIONS:
 		if perturbation == 0:
+			continue
 			TRAIN_ATTACKS = [CLEAN]
 		else:
 			TRAIN_ATTACKS = [AMBIGUITY_SET_UNIFORM]
@@ -195,4 +195,4 @@ if __name__ == '__main__':
 	dataset_wandb_tables = fetch_wandb_table(dataset_name)
 	ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
 
-	wandb_run.log({"{}-{}-AMU-LL".format(dataset_name, lr): ll_table})
+	# wandb_run.log({"{}-{}-AMU-LL".format(dataset_name, lr): ll_table})
