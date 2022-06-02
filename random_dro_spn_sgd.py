@@ -529,7 +529,7 @@ if __name__ == '__main__':
 	ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
 	cll_tables = dataset_wandb_tables[CONDITIONAL_LOGLIKELIHOOD_TABLES]
 
-	wandb_run.log({"{}-META-DRO-LL".format(dataset_name): ll_table})
+	wandb_run.log({"{}-Random-DRO-SGD-LL".format(dataset_name): ll_table})
 	for evidence_percentage in EVIDENCE_PERCENTAGES:
 		cll_ev_table = cll_tables[evidence_percentage]
-		wandb_run.log({"{}-META_DRO-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
+		wandb_run.log({"{}-Random-DRO-SGD-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
