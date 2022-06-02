@@ -155,7 +155,8 @@ RATSPN_MNIST_RESULTS_DIRECTORY = "results/ratspn/mnist"
 
 # DEBD_DATASETS = ['cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
 
-DEBD_DATASETS = ['nltcs', 'msnbc', 'kdd', 'bnetflix', 'accidents', 'dna', 'bbc']
+DEBD_DATASETS = ['nltcs', 'msnbc', 'kdd', 'plants', 'baudio',
+						   'jester', 'bnetflix', 'accidents', 'tretail', 'pumsb_star', 'dna', 'kosarek', 'msweb', 'book', 'tmovie', 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
 
 # DEBD_DATASETS = ['tmovie', 'cwebkb', 'cr52', 'c20ng', 'bbc', 'ad']
 

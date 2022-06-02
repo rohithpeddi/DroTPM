@@ -84,10 +84,24 @@ def train_cnet(run_id, trained_cnet, dataset_name, train_x, valid_x, test_x, per
 	if trained_cnet is None:
 		trained_clean_cnet = CNET.learn_best_cutset(train_x, valid_x, test_x, max_depth=10)
 		trained_cnet = copy.deepcopy(trained_clean_cnet)
+
+		trained_cnet.randomize_params()
+
+		# 4. Start gradient ascent on the concave maximization problem using sub gradient method
+		previous_train_ll, current_train_ll = 0, 0
+		for epoch in range(MAX_NUM_EPOCHS):
+			if epoch > 1 and abs(current_train_ll - previous_train_ll) < 1e-3:
+				break
+			trained_cnet.sgd_update_params(train_x, eta=learning_rate)
+			train_ll, valid_ll, test_ll = evaluate_lls(trained_cnet, train_x, valid_x, test_x, epoch)
+			previous_train_ll = current_train_ll
+			current_train_ll = valid_ll
+
 	# 2. If adversarial training then
 	if is_adv:
 		# 3. Randomize training parameters
-		print("Keeping the structure and randomizing the parameters for the dataset {} and learning with lr {}".format(dataset_name, learning_rate))
+		print("Keeping the structure and randomizing the parameters for the dataset {} and learning with lr {}".format(
+			dataset_name, learning_rate))
 		trained_cnet.randomize_params()
 
 		# 4. Start gradient ascent on the concave maximization problem using sub gradient method

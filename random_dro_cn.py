@@ -187,9 +187,9 @@ def random_dro_cn(run_id, specific_datasets, is_adv, train_attack_type, perturba
 			trained_clean_cnet = CN.train_cnet(run_id, trained_clean_cnet, dataset_name, train_x, valid_x, test_x,
 											   perturbations, attack_type=CLEAN, is_adv=False,
 											   learning_rate=learning_rate)
-		# if perturbations == 1:
-		# 	test_trained_cnet(dataset_name, trained_clean_cnet, trained_clean_cnet, train_x, test_x, perturbations,
-		# 					  ll_table, train_attack_type=CLEAN)
+		if perturbations == 1:
+			test_trained_cnet(dataset_name, trained_clean_cnet, trained_clean_cnet, train_x, test_x, perturbations,
+							  ll_table, train_attack_type=CLEAN)
 
 		for samples in [10, 30, 50]:
 			perturbed_training_datasets = []

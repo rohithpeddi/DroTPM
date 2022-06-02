@@ -1,20 +1,24 @@
+import numpy as np
+import argparse
 import torch
+from torch import optim
 from torch.utils.data import TensorDataset, DataLoader
+from tqdm import tqdm
 
 import wandb
-import einet_base_spn as SPN
-from EinsumNetwork.ExponentialFamilyArray import CategoricalArray
+import einet_sgd_base_spn as SPN
+from EinsumNetworkSGD import EinsumNetwork
+from EinsumNetworkSGD.ExponentialFamilyArray import NormalArray, CategoricalArray, BinomialArray
 from constants import *
-from attacks.SPN.random import attack as random_attack
 from deeprob.torch.callbacks import EarlyStopping
-from EinsumNetwork import EinsumNetwork
+from attacks.SPN.random import attack as random_attack
 
-run1 = wandb.init(project="DROSPN", entity="utd-ml-pgm")
-columns = ["attack_type", "perturbations", "standard_mean_ll", "standard_std_ll",
-		   "ls1_mean_ll", "ls1_std_ll", "ls3_mean_ll", "ls3_std_ll", "ls5_mean_ll", "ls5_std_ll",
-		   "rls1_mean_ll", "rls1_std_ll", "rls3_mean_ll", "rls3_std_ll", "rls5_mean_ll", "rls5_std_ll",
-		   "av1_mean_ll", "av1_std_ll", "av3_mean_ll", "av3_std_ll", "av5_mean_ll", "av5_std_ll",
-		   "w1_mean_ll", "w1_std_ll", "w3_mean_ll", "w3_std_ll", "w5_mean_ll", "w5_std_ll"]
+# wandb_run = wandb.init(project="DRO-Random-SGD-SPN", entity="utd-ml-pgm")
+
+columns = ["attack_type", "perturbations", "standard_mean_ll", "ls1_mean_ll", "ls3_mean_ll", "ls5_mean_ll",
+		   "rls1_mean_ll", "rls3_mean_ll", "rls5_mean_ll", "av1_mean_ll", "av3_mean_ll", "av5_mean_ll",
+		   "w1_mean_ll", "w3_mean_ll", "w5_mean_ll"]
+
 wandb_tables = dict()
 
 
@@ -36,58 +40,6 @@ def fetch_wandb_table(dataset_name):
 	return wandb_tables[dataset_name]
 
 
-def fetch_einet_args_discrete(dataset_name, num_var, exponential_family, exponential_family_args):
-	einet_args = dict()
-	einet_args[NUM_VAR] = num_var
-
-	num_distributions, online_em_frequency, batch_size = None, DEFAULT_ONLINE_EM_FREQUENCY, DEFAULT_TRAIN_BATCH_SIZE
-	if dataset_name in ['plants', 'accidents', 'tretail']:
-		num_distributions = 20
-		batch_size = 100
-		online_em_frequency = 50
-	elif dataset_name in ['nltcs', 'msnbc', 'kdd', 'pumsb_star', 'kosarek', 'msweb']:
-		num_distributions = 10
-		batch_size = 100
-		online_em_frequency = 50
-	elif dataset_name in ['baudio', 'jester', 'bnetflix', 'book']:
-		num_distributions = 10
-		batch_size = 50
-		online_em_frequency = 5
-	elif dataset_name in ['tmovie', 'dna']:
-		num_distributions = 10
-		batch_size = 50
-		online_em_frequency = 1
-	elif dataset_name in ['cwebkb', 'bbc', 'cr52']:
-		num_distributions = 10
-		batch_size = 50
-		online_em_frequency = 1
-	elif dataset_name in ['c20ng']:
-		num_distributions = 10
-		batch_size = 50
-		online_em_frequency = 5
-	elif dataset_name in ['ad']:
-		num_distributions = 10
-		batch_size = 50
-		online_em_frequency = 5
-	elif dataset_name in [BINARY_MNIST, BINARY_FASHION_MNIST]:
-		num_distributions = 10
-		batch_size = 100
-		online_em_frequency = 10
-
-	einet_args[NUM_SUMS] = num_distributions
-	einet_args[USE_EM] = True
-	einet_args[NUM_CLASSES] = GENERATIVE_NUM_CLASSES
-	einet_args[NUM_INPUT_DISTRIBUTIONS] = num_distributions
-	einet_args[EXPONENTIAL_FAMILY] = exponential_family
-	einet_args[EXPONENTIAL_FAMILY_ARGS] = exponential_family_args
-	einet_args[ONLINE_EM_FREQUENCY] = online_em_frequency
-	einet_args[ONLINE_EM_STEPSIZE] = DEFAULT_ONLINE_EM_STEPSIZE
-	einet_args[NUM_REPETITIONS] = DEFAULT_NUM_REPETITIONS
-	einet_args[BATCH_SIZE] = batch_size
-
-	return einet_args
-
-
 def evaluation_message(message):
 	print("\n")
 	print("-----------------------------------------------------------------------------")
@@ -95,8 +47,152 @@ def evaluation_message(message):
 	print("-----------------------------------------------------------------------------")
 
 
-# ------------------------------------------------------------------------------------------
-# ------  TESTING AREA ------
+def fetch_einet_args_discrete(dataset_name, num_var, exponential_family, exponential_family_args):
+	einet_args = dict()
+	einet_args[NUM_VAR] = num_var
+	num_distributions, batch_size = None, DEFAULT_TRAIN_BATCH_SIZE
+	learning_rate = 0.1
+	weight_decay = 1e-4
+	batch_size = 700
+
+	if dataset_name in ['plants', 'tretail']:
+		num_distributions = 20
+	if dataset_name in ['accidents']:
+		num_distributions = 20
+		batch_size = 600
+	elif dataset_name in ['pumsb_star', 'kosarek', 'msweb']:
+		num_distributions = 10
+	elif dataset_name in ['nltcs']:
+		num_distributions = 10
+		batch_size = 700
+	elif dataset_name in ['msnbc']:
+		num_distributions = 10
+		batch_size = 500
+	elif dataset_name in ['kdd']:
+		num_distributions = 10
+		batch_size = 700
+	elif dataset_name in ['baudio', 'jester', 'book']:
+		num_distributions = 10
+	elif dataset_name in ['bnetflix']:
+		num_distributions = 10
+		batch_size = 600
+	elif dataset_name in ['tmovie']:
+		num_distributions = 20
+	elif dataset_name in ['dna']:
+		num_distributions = 20
+		batch_size = 700
+	elif dataset_name in ['cwebkb', 'cr52']:
+		num_distributions = 10
+	elif dataset_name in ['bbc']:
+		batch_size = 700
+		num_distributions = 10
+	elif dataset_name in ['c20ng']:
+		num_distributions = 10
+	elif dataset_name in ['ad']:
+		num_distributions = 10
+	elif dataset_name in [BINARY_MNIST, BINARY_FASHION_MNIST]:
+		num_distributions = 10
+		batch_size = 100
+	einet_args[NUM_SUMS] = num_distributions
+	einet_args[NUM_CLASSES] = GENERATIVE_NUM_CLASSES
+	einet_args[NUM_INPUT_DISTRIBUTIONS] = num_distributions
+	einet_args[EXPONENTIAL_FAMILY] = exponential_family
+	einet_args[EXPONENTIAL_FAMILY_ARGS] = exponential_family_args
+	einet_args[NUM_REPETITIONS] = DEFAULT_NUM_REPETITIONS
+	einet_args[BATCH_SIZE] = batch_size
+	einet_args[LEARNING_RATE] = learning_rate
+	einet_args[WEIGHT_DECAY] = weight_decay
+	return einet_args
+
+
+def train_einet(dataset_name, einet, train_x, valid_x, test_x, batch_size, learning_rate, weight_decay):
+	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE, filepath=EARLY_STOPPING_FILE,
+								   delta=EARLY_STOPPING_DELTA)
+	optimizer = optim.Adam(list(einet.parameters()), lr=learning_rate, weight_decay=weight_decay)
+	train_dataset = TensorDataset(train_x)
+	for epoch_count in range(MAX_NUM_EPOCHS):
+		train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True)
+		train_dataloader = tqdm(
+			train_dataloader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
+			desc='Training epoch : {}, for dataset : {}'.format(epoch_count, dataset_name),
+			unit='batch'
+		)
+		einet.train()
+		for inputs in train_dataloader:
+			optimizer.zero_grad()
+			outputs = einet.forward(inputs[0])
+			log_likelihood = outputs.sum()
+			objective = -log_likelihood
+			objective.backward()
+			optimizer.step()
+		train_ll, valid_ll, test_ll = SPN.evaluate_lls(einet, train_x, valid_x, test_x,
+													   epoch_count=epoch_count)
+		if epoch_count > 1:
+			early_stopping(-valid_ll, epoch_count)
+			if early_stopping.should_stop:
+				print("Early Stopping... {}".format(early_stopping))
+				break
+	return einet
+
+
+def train_random_dro_from_perturbed_datasets(dataset_name, perturbed_training_datasets, einet, train_x, valid_x, test_x,
+											 batch_size, learning_rate, weight_decay):
+	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE, filepath=EARLY_STOPPING_FILE,
+								   delta=EARLY_STOPPING_DELTA)
+	optimizer = optim.Adam(list(einet.parameters()), lr=learning_rate, weight_decay=weight_decay)
+
+	train_dataset = TensorDataset(train_x)
+	for epoch_count in range(1, MAX_NUM_EPOCHS):
+		train_dataloader = DataLoader(train_dataset, batch_size, shuffle=False)
+		einet.train()
+
+		train_dataloader = tqdm(
+			train_dataloader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
+			desc='Training epoch : {}, for dataset : {}'.format(epoch_count, dataset_name),
+			unit='batch'
+		)
+
+		batch_counter = 0
+		for inputs in train_dataloader:
+			einet.train()
+			optimizer.zero_grad()
+
+			batch_input = inputs[0]
+
+			outputs = einet.forward(batch_input)
+			log_likelihood = outputs.sum()
+			objective = -log_likelihood
+			objective.backward()
+
+			optimizer.step()
+			batch_counter = batch_counter + 1
+
+		train_ll, valid_ll, test_ll = SPN.evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=epoch_count)
+
+		if epoch_count > 1:
+			early_stopping(-valid_ll, epoch_count)
+			if early_stopping.should_stop and epoch_count > 5:
+				print("Early Stopping... {}".format(early_stopping))
+				break
+
+		einet.eval()
+		perturbed_likelihoods = []
+		for i in range(len(perturbed_training_datasets)):
+			perturbed_dataset = perturbed_training_datasets[i]
+			perturbed_data_likelihood = EinsumNetwork.eval_loglikelihood_batched(einet, perturbed_dataset,
+																				 batch_size=EVAL_BATCH_SIZE) / \
+										train_x.shape[0]
+			perturbed_likelihoods.append(perturbed_data_likelihood)
+		min_likelihood_dataset_idx = torch.argmin(torch.tensor(perturbed_likelihoods))
+		print("Minimum Likelihood is observed at idx : {}".format(min_likelihood_dataset_idx))
+		train_dataset = TensorDataset(perturbed_training_datasets[min_likelihood_dataset_idx])
+
+	einet.load_state_dict(early_stopping.get_best_state())
+	train_ll, valid_ll, test_ll = SPN.evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=epoch_count)
+
+	return einet
+
+
 def test_trained_einet(dataset_name, trained_adv_einet, trained_clean_einet, train_x, test_x, test_labels, ll_table,
 					   cll_tables, train_attack_type, perturbations):
 	# ------  AVERAGE ATTACK AREA ------
@@ -111,7 +207,7 @@ def test_trained_einet(dataset_name, trained_adv_einet, trained_clean_einet, tra
 		mean_ll, std_ll, attack_test_x = SPN.test_einet(dataset_name, trained_adv_einet, trained_clean_einet, train_x,
 														test_x, test_labels, perturbations=perturbations, device=device,
 														attack_type=attack_type, batch_size=batch_size, is_adv=is_adv)
-		evaluation_message("{} Mean LL : {}, Std LL : {}".format(attack_type, mean_ll, std_ll))
+		evaluation_message("{}-{} Mean LL : {}, Std LL : {}".format(attack_type, perturbations, mean_ll, std_ll))
 
 		return mean_ll, std_ll, attack_test_x
 
@@ -186,12 +282,10 @@ def test_trained_einet(dataset_name, trained_adv_einet, trained_clean_einet, tra
 														 attack_type=WEAKER_MODEL,
 														 batch_size=DEFAULT_EVAL_BATCH_SIZE, is_adv=True)
 
-	ll_table.add_data(train_attack_type, perturbations, standard_mean_ll, standard_std_ll,
-					  ls1_mean_ll, ls1_std_ll, ls3_mean_ll, ls3_std_ll, ls5_mean_ll, ls5_std_ll,
-					  rls1_mean_ll, rls1_std_ll, rls3_mean_ll, rls3_std_ll, rls5_mean_ll, rls5_std_ll,
-					  av_mean_ll_dict[1], av_std_ll_dict[1], av_mean_ll_dict[3], av_std_ll_dict[3],
-					  av_mean_ll_dict[5], av_std_ll_dict[5],
-					  w1_mean_ll, w1_std_ll, w3_mean_ll, w3_std_ll, w5_mean_ll, w5_std_ll)
+	ll_table.add_data(train_attack_type, perturbations, standard_mean_ll, ls1_mean_ll, ls3_mean_ll, ls5_mean_ll,
+					  rls1_mean_ll, rls3_mean_ll, rls5_mean_ll,
+					  av_mean_ll_dict[1], av_mean_ll_dict[3], av_mean_ll_dict[5],
+					  w1_mean_ll, w3_mean_ll, w5_mean_ll)
 
 	# ------------------------------------------------------------------------------------------------
 	# ----------------------------- CONDITIONAL LIKELIHOOD AREA --------------------------------------
@@ -293,49 +387,14 @@ def test_trained_einet(dataset_name, trained_adv_einet, trained_clean_einet, tra
 
 		# -------------------------------- LOG CONDITIONALS TO WANDB TABLES ------------------------------------
 
-		cll_table.add_data(train_attack_type, perturbations, standard_mean_cll, standard_std_cll,
-						   ls1_mean_cll, ls1_std_cll, ls3_mean_cll, ls3_std_cll, ls5_mean_cll, ls5_std_cll,
-						   rls1_mean_cll, rls1_std_cll, rls3_mean_cll, rls3_std_cll, rls5_mean_cll,
-						   rls5_std_cll,
-						   av_mean_cll_dict[1][evidence_percentage], av_std_cll_dict[1][evidence_percentage],
-						   av_mean_cll_dict[3][evidence_percentage], av_std_cll_dict[3][evidence_percentage],
-						   av_mean_cll_dict[5][evidence_percentage], av_std_cll_dict[5][evidence_percentage],
-						   w1_mean_cll, w1_std_cll, w3_mean_cll, w3_std_cll, w5_mean_cll, w5_std_cll)
+		cll_table.add_data(train_attack_type, perturbations, standard_mean_cll,
+						   ls1_mean_cll, ls3_mean_cll, ls5_mean_cll,
+						   rls1_mean_cll, rls3_mean_cll, rls5_mean_cll,
+						   av_mean_cll_dict[1][evidence_percentage], av_mean_cll_dict[3][evidence_percentage],
+						   av_mean_cll_dict[5][evidence_percentage], w1_mean_cll, w3_mean_cll, w5_mean_cll)
 
 
-def train_random_dro_from_perturbed_datasets(run_id, dataset_name, perturbed_training_datasets, einet, train_x, valid_x,
-											 test_x, einet_args):
-	patience = DEFAULT_EINET_PATIENCE
-	early_stopping = EarlyStopping(einet, patience=patience, filepath=EARLY_STOPPING_FILE, delta=EARLY_STOPPING_DELTA)
-
-	train_dataset = TensorDataset(train_x)
-	for epoch_count in range(MAX_NUM_EPOCHS):
-		einet.train()
-		train_dataloader = DataLoader(train_dataset, einet_args[BATCH_SIZE], shuffle=True)
-		SPN.epoch_einet_train(train_dataloader, einet, epoch_count, dataset_name, weight=1)
-		train_ll, valid_ll, test_ll = SPN.evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=epoch_count)
-		if epoch_count > 1:
-			early_stopping(-valid_ll, epoch_count)
-			if early_stopping.should_stop and epoch_count > 5:
-				print("Early Stopping... {}".format(early_stopping))
-				break
-		print("Fetching adversarial data, training epoch {}".format(epoch_count))
-
-		einet.eval()
-		perturbed_likelihoods = []
-		for i in range(len(perturbed_training_datasets)):
-			perturbed_dataset = perturbed_training_datasets[i]
-			perturbed_data_likelihood = EinsumNetwork.eval_loglikelihood_batched(einet, perturbed_dataset,
-																				 batch_size=EVAL_BATCH_SIZE) / \
-										train_x.shape[0]
-			perturbed_likelihoods.append(perturbed_data_likelihood)
-		min_likelihood_dataset_idx = torch.argmin(torch.tensor(perturbed_likelihoods))
-		print("Minimum Likelihood is observed at idx : {}".format(min_likelihood_dataset_idx))
-		train_dataset = TensorDataset(perturbed_training_datasets[min_likelihood_dataset_idx])
-	return einet
-
-
-def random_dro_spn(run_id, specific_datasets=None, perturbations=None, device=None):
+def train_random_dro_spn_sgd(run_id, device, specific_datasets=None, train_attack_type=None, perturbations=None):
 	if specific_datasets is None:
 		specific_datasets = DISCRETE_DATASETS
 	else:
@@ -349,46 +408,50 @@ def random_dro_spn(run_id, specific_datasets=None, perturbations=None, device=No
 
 		evaluation_message("Dataset : {}".format(dataset_name))
 		train_x, valid_x, test_x, train_labels, valid_labels, test_labels = SPN.load_dataset(dataset_name, device)
+
 		exponential_family, exponential_family_args, structures = None, None, None
 		if dataset_name in DISCRETE_DATASETS:
 			if dataset_name == BINARY_MNIST:
 				structures = [POON_DOMINGOS]
 			else:
 				structures = [BINARY_TREES]
-			exponential_family = CategoricalArray
+			if dataset_name in DEBD_DATASETS:
+				exponential_family = BinomialArray
+			else:
+				exponential_family = CategoricalArray
 			exponential_family_args = SPN.generate_exponential_family_args(exponential_family, dataset_name)
 
 		for structure in structures:
+
 			evaluation_message("Using the structure {}".format(structure))
-			graph = None
-			if structure == POON_DOMINGOS:
-				structure_args = dict()
-				structure_args[HEIGHT] = MNIST_HEIGHT
-				structure_args[WIDTH] = MNIST_WIDTH
-				structure_args[PD_NUM_PIECES] = DEFAULT_PD_NUM_PIECES
-				graph = SPN.load_structure(run_id, structure, dataset_name, structure_args)
-			else:
-				structure_args = dict()
-				structure_args[NUM_VAR] = train_x.shape[1]
-				structure_args[DEPTH] = DEFAULT_DEPTH
-				structure_args[NUM_REPETITIONS] = DEFAULT_NUM_REPETITIONS
-				graph = SPN.load_structure(run_id, structure, dataset_name, structure_args)
+
+			structure_args = dict()
+			structure_args[NUM_VAR] = train_x.shape[1]
+			structure_args[DEPTH] = DEFAULT_DEPTH
+			structure_args[NUM_REPETITIONS] = DEFAULT_NUM_REPETITIONS
+			graph = SPN.load_structure(run_id, structure, dataset_name, structure_args)
+
 			einet_args = fetch_einet_args_discrete(dataset_name, train_x.shape[1], exponential_family,
 												   exponential_family_args)
 
-			evaluation_message("Loading Clean Einet")
-			trained_clean_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args, device)
+			trained_clean_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args, device,
+															attack_type=CLEAN)
 
-			# Train a clean EiNET on original training data
 			if trained_clean_einet is None:
+				evaluation_message("Loading Einet")
 				clean_einet = SPN.load_einet(run_id, structure, dataset_name, einet_args, graph, device)
 				evaluation_message("Training clean einet")
-				trained_clean_einet = SPN.train_einet(run_id, structure, dataset_name, clean_einet, train_labels,
-													  train_x, valid_x, test_x, einet_args, perturbations, device,
-													  CLEAN, batch_size=einet_args[BATCH_SIZE], is_adv=False)
-			if perturbations == 1:
-				test_trained_einet(dataset_name, trained_clean_einet, trained_clean_einet, train_x, test_x, test_labels,
-								   ll_table, cll_tables, "clean", 0)
+				trained_clean_einet = train_einet(dataset_name, clean_einet, train_x, valid_x, test_x,
+												  einet_args[BATCH_SIZE],
+												  einet_args[LEARNING_RATE], einet_args[WEIGHT_DECAY])
+				SPN.save_model(run_id, trained_clean_einet, dataset_name, structure, einet_args, False, CLEAN, 0)
+
+			trained_adv_einet = trained_clean_einet
+
+			# if perturbations == 1:
+			# 	# Test the clean einet only once
+			# 	test_trained_einet(dataset_name, trained_clean_einet, trained_clean_einet, train_x, test_x, test_labels,
+			# 					   ll_table, cll_tables, CLEAN, 0)
 
 			for samples in [10, 30, 50]:
 				perturbed_training_datasets = []
@@ -403,36 +466,70 @@ def random_dro_spn(run_id, specific_datasets=None, perturbations=None, device=No
 				specific_filename = "{}_{}_{}".format(dataset_name, perturbations, samples)
 
 				print(specific_filename)
-				trained_random_dro_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, attack_type=WASSERSTEIN_RANDOM_SAMPLES, perturbations=perturbations, specific_filename=specific_filename)
+				trained_random_dro_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args,
+																	 device, attack_type=train_attack_type,
+																	 perturbations=perturbations,
+																	 specific_filename=specific_filename)
 
 				if trained_random_dro_einet is None:
 					print("Could not find trained models")
 					random_dro_einet = SPN.load_einet(run_id, structure, dataset_name, einet_args, graph, device)
-					trained_random_dro_einet = train_random_dro_from_perturbed_datasets(run_id, dataset_name,
-																						perturbed_training_datasets,
-																					random_dro_einet, train_x,
-																					valid_x, test_x, einet_args)
+					trained_random_dro_einet = train_random_dro_from_perturbed_datasets(dataset_name, perturbed_training_datasets, random_dro_einet, train_x, valid_x, test_x,
+																						einet_args[BATCH_SIZE],
+																						einet_args[LEARNING_RATE], einet_args[WEIGHT_DECAY])
 
 				test_trained_einet(dataset_name, trained_random_dro_einet, trained_clean_einet, train_x, test_x,
 								   test_labels, ll_table, cll_tables, "random_dro_samples_{}".format(samples),
 								   perturbations)
 
-				SPN.save_model(run_id, trained_random_dro_einet, dataset_name, structure, einet_args, True, WASSERSTEIN_RANDOM_SAMPLES,
-							   perturbations, specific_filename=specific_filename)
+				SPN.save_model(run_id, trained_adv_einet, dataset_name, structure, einet_args, True, train_attack_type,
+							   perturbations)
+
+
+# adv_einet = SPN.load_einet(run_id, structure, dataset_name, einet_args, graph, device)
+#
+# print("Considering adv einet")
+# trained_adv_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args, device,
+# 											  attack_type=train_attack_type, perturbations=perturbations)
+# if trained_adv_einet is None:
+# 	# Test the adversarial einet
+# 	evaluation_message(
+# 		"Training adversarial einet with attack type {}-{}".format(train_attack_type, perturbations))
+# 	trained_adv_einet = train_einet_random_dro(dataset_name, adv_einet, perturbations, train_x, valid_x,
+# 											   test_x, einet_args[BATCH_SIZE], einet_args[LEARNING_RATE],
+# 											   einet_args[WEIGHT_DECAY])
+# 	SPN.save_model(run_id, trained_adv_einet, dataset_name, structure, einet_args, True, train_attack_type,
+# 				   perturbations)
+#
+# test_trained_einet(dataset_name, trained_adv_einet, trained_clean_einet, train_x, test_x, test_labels,
+# 				   ll_table, cll_tables, train_attack_type, perturbations)
 
 
 if __name__ == '__main__':
 
+	parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser.add_argument('--dataset', type=str, required=True, help="dataset name")
+	parser.add_argument('--runid', type=str, required=True, help="run id")
+	ARGS = parser.parse_args()
+	print(ARGS)
+
+	dataset_name = ARGS.dataset
+	run_id = ARGS.runid
+
 	device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-	for dataset_name in DEBD_DATASETS:
-		for perturbation in DRO_PERTURBATIONS:
-			random_dro_spn(run_id=651, specific_datasets=dataset_name, perturbations=perturbation, device=device)
-		dataset_wandb_tables = fetch_wandb_table(dataset_name)
-		ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
-		cll_tables = dataset_wandb_tables[CONDITIONAL_LOGLIKELIHOOD_TABLES]
+	for perturbation in DRO_PERTURBATIONS:
+		evaluation_message(
+			"Logging values for {}, perturbation {}, train attack type {}".format(dataset_name, perturbation,
+																				  WASSERSTEIN_RANDOM_SAMPLES))
+		train_random_dro_spn_sgd(run_id=run_id, device=device, specific_datasets=dataset_name,
+								 train_attack_type=WASSERSTEIN_RANDOM_SAMPLES, perturbations=perturbation)
 
-		run1.log({"{}-Random-DRO-Sampled-LL".format(dataset_name): ll_table})
-		for evidence_percentage in EVIDENCE_PERCENTAGES:
-			cll_ev_table = cll_tables[evidence_percentage]
-			run1.log({"{}-Random-Dro-Sampled-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
+	dataset_wandb_tables = fetch_wandb_table(dataset_name)
+	ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
+	cll_tables = dataset_wandb_tables[CONDITIONAL_LOGLIKELIHOOD_TABLES]
+
+# wandb_run.log({"{}-META-DRO-LL".format(dataset_name): ll_table})
+# for evidence_percentage in EVIDENCE_PERCENTAGES:
+# 	cll_ev_table = cll_tables[evidence_percentage]
+# 	wandb_run.log({"{}-META_DRO-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
