@@ -483,7 +483,7 @@ def train_random_dro_spn_sgd(run_id, device, specific_datasets=None, train_attac
 								   perturbations)
 
 				SPN.save_model(run_id, trained_adv_einet, dataset_name, structure, einet_args, True, train_attack_type,
-							   perturbations)
+							   perturbations, specific_filename)
 
 
 # adv_einet = SPN.load_einet(run_id, structure, dataset_name, einet_args, graph, device)
