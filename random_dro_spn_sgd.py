@@ -13,7 +13,7 @@ from constants import *
 from deeprob.torch.callbacks import EarlyStopping
 from attacks.SPN.random import attack as random_attack
 
-# wandb_run = wandb.init(project="DRO-Random-SGD-SPN", entity="utd-ml-pgm")
+wandb_run = wandb.init(project="DRO-Random-SGD-SPN", entity="utd-ml-pgm")
 
 columns = ["attack_type", "perturbations", "standard_mean_ll", "ls1_mean_ll", "ls3_mean_ll", "ls5_mean_ll",
 		   "rls1_mean_ll", "rls3_mean_ll", "rls5_mean_ll", "av1_mean_ll", "av3_mean_ll", "av5_mean_ll",
@@ -529,7 +529,7 @@ if __name__ == '__main__':
 	ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
 	cll_tables = dataset_wandb_tables[CONDITIONAL_LOGLIKELIHOOD_TABLES]
 
-# wandb_run.log({"{}-META-DRO-LL".format(dataset_name): ll_table})
-# for evidence_percentage in EVIDENCE_PERCENTAGES:
-# 	cll_ev_table = cll_tables[evidence_percentage]
-# 	wandb_run.log({"{}-META_DRO-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
+	wandb_run.log({"{}-META-DRO-LL".format(dataset_name): ll_table})
+	for evidence_percentage in EVIDENCE_PERCENTAGES:
+		cll_ev_table = cll_tables[evidence_percentage]
+		wandb_run.log({"{}-META_DRO-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
