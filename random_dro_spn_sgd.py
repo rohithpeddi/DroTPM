@@ -106,7 +106,7 @@ def fetch_einet_args_discrete(dataset_name, num_var, exponential_family, exponen
 
 
 def train_einet(dataset_name, einet, train_x, valid_x, test_x, batch_size, learning_rate, weight_decay):
-	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE, filepath=EARLY_STOPPING_FILE,
+	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE, filepath="{}_{}".format(dataset_name, EARLY_STOPPING_FILE),
 								   delta=EARLY_STOPPING_DELTA)
 	optimizer = optim.Adam(list(einet.parameters()), lr=learning_rate, weight_decay=weight_decay)
 	train_dataset = TensorDataset(train_x)
@@ -137,7 +137,7 @@ def train_einet(dataset_name, einet, train_x, valid_x, test_x, batch_size, learn
 
 def train_random_dro_from_perturbed_datasets(dataset_name, perturbed_training_datasets, einet, train_x, valid_x, test_x,
 											 batch_size, learning_rate, weight_decay):
-	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE, filepath=EARLY_STOPPING_FILE,
+	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE, filepath="{}_{}".format(dataset_name, EARLY_STOPPING_FILE),
 								   delta=EARLY_STOPPING_DELTA)
 	optimizer = optim.Adam(list(einet.parameters()), lr=learning_rate, weight_decay=weight_decay)
 
