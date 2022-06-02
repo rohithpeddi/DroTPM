@@ -448,10 +448,10 @@ def train_random_dro_spn_sgd(run_id, device, specific_datasets=None, train_attac
 
 			trained_adv_einet = trained_clean_einet
 
-			# if perturbations == 1:
-			# 	# Test the clean einet only once
-			# 	test_trained_einet(dataset_name, trained_clean_einet, trained_clean_einet, train_x, test_x, test_labels,
-			# 					   ll_table, cll_tables, CLEAN, 0)
+			if perturbations == 1:
+				# Test the clean einet only once
+				test_trained_einet(dataset_name, trained_clean_einet, trained_clean_einet, train_x, test_x, test_labels,
+								   ll_table, cll_tables, CLEAN, 0)
 
 			for samples in [10, 30, 50]:
 				perturbed_training_datasets = []
