@@ -12,13 +12,11 @@ from EinsumNetworkSGD.ExponentialFamilyArray import NormalArray, CategoricalArra
 from constants import *
 from deeprob.torch.callbacks import EarlyStopping
 
-# wandb_run = wandb.init(project="DROSPN", entity="utd-ml-pgm")
+wandb_run = wandb.init(project="DRO-GRADIENT-SGD-SPN", entity="utd-ml-pgm")
 
-columns = ["attack_type", "perturbations", "standard_mean_ll", "standard_std_ll",
-		   "ls1_mean_ll", "ls1_std_ll", "ls3_mean_ll", "ls3_std_ll", "ls5_mean_ll", "ls5_std_ll",
-		   "rls1_mean_ll", "rls1_std_ll", "rls3_mean_ll", "rls3_std_ll", "rls5_mean_ll", "rls5_std_ll",
-		   "av1_mean_ll", "av1_std_ll", "av3_mean_ll", "av3_std_ll", "av5_mean_ll", "av5_std_ll",
-		   "w1_mean_ll", "w1_std_ll", "w3_mean_ll", "w3_std_ll", "w5_mean_ll", "w5_std_ll"]
+columns = ["attack_type", "perturbations", "standard_mean_ll", "ls1_mean_ll", "ls3_mean_ll", "ls5_mean_ll",
+		   "rls1_mean_ll", "rls3_mean_ll", "rls5_mean_ll", "av1_mean_ll", "av3_mean_ll", "av5_mean_ll",
+		   "w1_mean_ll", "w3_mean_ll", "w5_mean_ll"]
 
 wandb_tables = dict()
 
@@ -54,61 +52,43 @@ def fetch_einet_args_discrete(dataset_name, num_var, exponential_family, exponen
 	num_distributions, batch_size = None, DEFAULT_TRAIN_BATCH_SIZE
 	learning_rate = 0.1
 	weight_decay = 1e-4
+	batch_size = 700
 
 	if dataset_name in ['plants', 'tretail']:
 		num_distributions = 20
-		batch_size = 100
 	if dataset_name in ['accidents']:
 		num_distributions = 20
 		batch_size = 600
-		learning_rate = 0.1
-		weight_decay = 1e-4
 	elif dataset_name in ['pumsb_star', 'kosarek', 'msweb']:
 		num_distributions = 10
-		batch_size = 100
 	elif dataset_name in ['nltcs']:
 		num_distributions = 10
 		batch_size = 700
-		learning_rate = 0.1
-		weight_decay = 1e-4
 	elif dataset_name in ['msnbc']:
 		num_distributions = 10
 		batch_size = 500
-		learning_rate = 0.1
-		weight_decay = 1e-4
 	elif dataset_name in ['kdd']:
 		num_distributions = 10
 		batch_size = 700
-		learning_rate = 0.1
-		weight_decay = 1e-4
 	elif dataset_name in ['baudio', 'jester', 'book']:
 		num_distributions = 10
-		batch_size = 50
 	elif dataset_name in ['bnetflix']:
 		num_distributions = 10
 		batch_size = 600
-		learning_rate = 0.1
-		weight_decay = 1e-4
 	elif dataset_name in ['tmovie']:
 		num_distributions = 20
-		batch_size = 50
 	elif dataset_name in ['dna']:
 		num_distributions = 20
 		batch_size = 700
-		learning_rate = 0.1
-		weight_decay = 1e-4
 	elif dataset_name in ['cwebkb', 'cr52']:
 		num_distributions = 10
-		batch_size = 50
 	elif dataset_name in ['bbc']:
 		batch_size = 700
 		num_distributions = 10
 	elif dataset_name in ['c20ng']:
 		num_distributions = 10
-		batch_size = 50
 	elif dataset_name in ['ad']:
 		num_distributions = 10
-		batch_size = 50
 	elif dataset_name in [BINARY_MNIST, BINARY_FASHION_MNIST]:
 		num_distributions = 10
 		batch_size = 100
@@ -156,7 +136,7 @@ def train_einet(dataset_name, einet, train_x, valid_x, test_x, batch_size, learn
 
 def train_einet_meta_dro(dataset_name, einet, perturbations, train_x, valid_x, test_x, batch_size, learning_rate,
 						 weight_decay):
-	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE, filepath=EARLY_STOPPING_FILE,
+	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE, filepath="{}_{}_{}".format(dataset_name, WASSERSTEIN_META, EARLY_STOPPING_FILE),
 								   delta=EARLY_STOPPING_DELTA)
 	optimizer = optim.Adam(list(einet.parameters()), lr=learning_rate, weight_decay=weight_decay)
 
@@ -198,7 +178,8 @@ def train_einet_meta_dro(dataset_name, einet, perturbations, train_x, valid_x, t
 															   (batch_size * batch_counter): min(train_x.shape[0], (
 																	   batch_size * (batch_counter + 1))), :])
 				num_dims = train_x.shape[1]
-				(values, indices) = torch.topk(scored_input.view(1, -1), int((adv_batch.shape[0]) * (perturbations/2)))
+				(values, indices) = torch.topk(scored_input.view(1, -1),
+											   int((adv_batch.shape[0]) * (perturbations / 2)))
 				row_change_count_dict = {}
 				for index in list(indices.cpu().numpy()[-1]):
 					row = index // num_dims
@@ -335,121 +316,226 @@ def test_trained_einet(dataset_name, trained_adv_einet, trained_clean_einet, tra
 														 attack_type=WEAKER_MODEL,
 														 batch_size=DEFAULT_EVAL_BATCH_SIZE, is_adv=True)
 
-	ll_table.add_data(train_attack_type, perturbations, standard_mean_ll, standard_std_ll,
-					  ls1_mean_ll, ls1_std_ll, ls3_mean_ll, ls3_std_ll, ls5_mean_ll, ls5_std_ll,
-					  rls1_mean_ll, rls1_std_ll, rls3_mean_ll, rls3_std_ll, rls5_mean_ll, rls5_std_ll,
-					  av_mean_ll_dict[1], av_std_ll_dict[1], av_mean_ll_dict[3], av_std_ll_dict[3],
-					  av_mean_ll_dict[5], av_std_ll_dict[5],
-					  w1_mean_ll, w1_std_ll, w3_mean_ll, w3_std_ll, w5_mean_ll, w5_std_ll)
+	ll_table.add_data(train_attack_type, perturbations, standard_mean_ll, ls1_mean_ll, ls3_mean_ll, ls5_mean_ll,
+					  rls1_mean_ll, rls3_mean_ll, rls5_mean_ll,
+					  av_mean_ll_dict[1], av_mean_ll_dict[3], av_mean_ll_dict[5],
+					  w1_mean_ll, w3_mean_ll, w5_mean_ll)
 
-	# # ------------------------------------------------------------------------------------------------
-	# # ----------------------------- CONDITIONAL LIKELIHOOD AREA --------------------------------------
-	# # ------------------------------------------------------------------------------------------------
-	#
-	# def attack_test_conditional_einet(test_attack_type, perturbations, dataset_name, trained_adv_einet,
-	# 								  evidence_percentage, test_x, batch_size):
-	# 	mean_ll, std_ll = SPN.test_conditional_einet(test_attack_type, perturbations, dataset_name,
-	# 												 trained_adv_einet,
-	# 												 evidence_percentage, test_x, batch_size=batch_size)
-	# 	evaluation_message(
-	# 		"{}-{},  Evidence percentage : {}, Mean LL : {}, Std LL  : {}".format(test_attack_type,
-	# 																			  perturbations,
-	# 																			  evidence_percentage,
-	# 																			  mean_ll, std_ll))
-	# 	dataset_distribution_evidence_results["{}-{} Mean LL".format(test_attack_type, perturbations)] = mean_ll
-	# 	dataset_distribution_evidence_results["{}-{} Std LL".format(test_attack_type, perturbations)] = std_ll
-	#
-	# 	return mean_ll, std_ll
-	#
-	# # ---------- AVERAGE ATTACK AREA ------
-	#
-	# # 8. Average attack dictionary
-	# av_mean_cll_dict, av_std_cll_dict = SPN.fetch_average_conditional_likelihoods_for_data(dataset_name,
-	# 																					   trained_adv_einet,
-	# 																					   device, test_x)
-	#
-	# for evidence_percentage in EVIDENCE_PERCENTAGES:
-	# 	cll_table = cll_tables[evidence_percentage]
-	#
-	# 	dataset_distribution_evidence_results = dict()
-	#
-	# 	# 1. Original Test Set
-	# 	standard_mean_cll, standard_std_cll = attack_test_conditional_einet(CLEAN, 0, dataset_name,
-	# 																		trained_adv_einet,
-	# 																		evidence_percentage,
-	# 																		standard_test_x,
-	# 																		batch_size=DEFAULT_EVAL_BATCH_SIZE)
-	#
-	# 	# ---------- LOCAL SEARCH AREA ------
-	#
-	# 	# 2. Local search - 1
-	# 	ls1_mean_cll, ls1_std_cll = attack_test_conditional_einet(LOCAL_SEARCH, 1, dataset_name,
-	# 															  trained_adv_einet,
-	# 															  evidence_percentage,
-	# 															  ls1_test_x,
-	# 															  batch_size=DEFAULT_EVAL_BATCH_SIZE)
-	#
-	# 	# 3. Local search - 3
-	# 	ls3_mean_cll, ls3_std_cll = attack_test_conditional_einet(LOCAL_SEARCH, 3, dataset_name,
-	# 															  trained_adv_einet,
-	# 															  evidence_percentage,
-	# 															  ls3_test_x,
-	# 															  batch_size=DEFAULT_EVAL_BATCH_SIZE)
-	#
-	# 	# 4. Local search - 5
-	# 	ls5_mean_cll, ls5_std_cll = attack_test_conditional_einet(LOCAL_SEARCH, 5, dataset_name,
-	# 															  trained_adv_einet,
-	# 															  evidence_percentage,
-	# 															  ls5_test_x,
-	# 															  batch_size=DEFAULT_EVAL_BATCH_SIZE)
-	#
-	# 	# ---------- RESTRICTED LOCAL SEARCH AREA ------
-	#
-	# 	# 5. Restricted Local search - 1
-	# 	rls1_mean_cll, rls1_std_cll = attack_test_conditional_einet(RESTRICTED_LOCAL_SEARCH, 1, dataset_name,
-	# 																trained_adv_einet, evidence_percentage,
-	# 																rls1_test_x,
-	# 																batch_size=DEFAULT_EVAL_BATCH_SIZE)
-	#
-	# 	# 6. Restricted Local search - 3
-	# 	rls3_mean_cll, rls3_std_cll = attack_test_conditional_einet(RESTRICTED_LOCAL_SEARCH, 3, dataset_name,
-	# 																trained_adv_einet, evidence_percentage,
-	# 																rls3_test_x,
-	# 																batch_size=DEFAULT_EVAL_BATCH_SIZE)
-	#
-	# 	# 7. Restricted Local search - 5
-	# 	rls5_mean_cll, rls5_std_cll = attack_test_conditional_einet(RESTRICTED_LOCAL_SEARCH, 5, dataset_name,
-	# 																trained_adv_einet, evidence_percentage,
-	# 																rls5_test_x,
-	# 																batch_size=DEFAULT_EVAL_BATCH_SIZE)
-	# 	#
-	# 	# # ---------- WEAKER MODEL AREA ------
-	#
-	# 	# 8. Weaker model - 1
-	# 	w1_mean_cll, w1_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 1, dataset_name,
-	# 															trained_adv_einet, evidence_percentage,
-	# 															w1_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
-	#
-	# 	# 9. Weaker model - 3
-	# 	w3_mean_cll, w3_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 3, dataset_name,
-	# 															trained_adv_einet, evidence_percentage,
-	# 															w3_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
-	#
-	# 	# 10. Weaker model - 5
-	# 	w5_mean_cll, w5_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 5, dataset_name,
-	# 															trained_adv_einet, evidence_percentage,
-	# 															w5_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
-	#
-	# 	# -------------------------------- LOG CONDITIONALS TO WANDB TABLES ------------------------------------
-	#
-	# 	cll_table.add_data(train_attack_type, perturbations, standard_mean_cll, standard_std_cll,
-	# 					   ls1_mean_cll, ls1_std_cll, ls3_mean_cll, ls3_std_cll, ls5_mean_cll, ls5_std_cll,
-	# 					   rls1_mean_cll, rls1_std_cll, rls3_mean_cll, rls3_std_cll, rls5_mean_cll,
-	# 					   rls5_std_cll,
-	# 					   av_mean_cll_dict[1][evidence_percentage], av_std_cll_dict[1][evidence_percentage],
-	# 					   av_mean_cll_dict[3][evidence_percentage], av_std_cll_dict[3][evidence_percentage],
-	# 					   av_mean_cll_dict[5][evidence_percentage], av_std_cll_dict[5][evidence_percentage],
-	# 					   w1_mean_cll, w1_std_cll, w3_mean_cll, w3_std_cll, w5_mean_cll, w5_std_cll)
+	# ------------------------------------------------------------------------------------------------
+	# ----------------------------- CONDITIONAL LIKELIHOOD AREA --------------------------------------
+	# ------------------------------------------------------------------------------------------------
+
+	def attack_test_conditional_einet(test_attack_type, perturbations, dataset_name, trained_adv_einet,
+									  evidence_percentage, test_x, batch_size):
+		mean_ll, std_ll = SPN.test_conditional_einet(test_attack_type, perturbations, dataset_name,
+													 trained_adv_einet,
+													 evidence_percentage, test_x, batch_size=batch_size)
+		evaluation_message(
+			"{}-{},  Evidence percentage : {}, Mean LL : {}, Std LL  : {}".format(test_attack_type,
+																				  perturbations,
+																				  evidence_percentage,
+																				  mean_ll, std_ll))
+		dataset_distribution_evidence_results["{}-{} Mean LL".format(test_attack_type, perturbations)] = mean_ll
+		dataset_distribution_evidence_results["{}-{} Std LL".format(test_attack_type, perturbations)] = std_ll
+
+		return mean_ll, std_ll
+
+	# ---------- AVERAGE ATTACK AREA ------
+
+	# 8. Average attack dictionary
+	av_mean_cll_dict, av_std_cll_dict = SPN.fetch_average_conditional_likelihoods_for_data(dataset_name,
+																						   trained_adv_einet,
+																						   device, test_x)
+
+	for evidence_percentage in EVIDENCE_PERCENTAGES:
+		cll_table = cll_tables[evidence_percentage]
+
+		dataset_distribution_evidence_results = dict()
+
+		# 1. Original Test Set
+		standard_mean_cll, standard_std_cll = attack_test_conditional_einet(CLEAN, 0, dataset_name,
+																			trained_adv_einet,
+																			evidence_percentage,
+																			standard_test_x,
+																			batch_size=DEFAULT_EVAL_BATCH_SIZE)
+
+		# ---------- LOCAL SEARCH AREA ------
+
+		# 2. Local search - 1
+		ls1_mean_cll, ls1_std_cll = attack_test_conditional_einet(LOCAL_SEARCH, 1, dataset_name,
+																  trained_adv_einet,
+																  evidence_percentage,
+																  ls1_test_x,
+																  batch_size=DEFAULT_EVAL_BATCH_SIZE)
+
+		# 3. Local search - 3
+		ls3_mean_cll, ls3_std_cll = attack_test_conditional_einet(LOCAL_SEARCH, 3, dataset_name,
+																  trained_adv_einet,
+																  evidence_percentage,
+																  ls3_test_x,
+																  batch_size=DEFAULT_EVAL_BATCH_SIZE)
+
+		# 4. Local search - 5
+		ls5_mean_cll, ls5_std_cll = attack_test_conditional_einet(LOCAL_SEARCH, 5, dataset_name,
+																  trained_adv_einet,
+																  evidence_percentage,
+																  ls5_test_x,
+																  batch_size=DEFAULT_EVAL_BATCH_SIZE)
+
+		# ---------- RESTRICTED LOCAL SEARCH AREA ------
+
+		# 5. Restricted Local search - 1
+		rls1_mean_cll, rls1_std_cll = attack_test_conditional_einet(RESTRICTED_LOCAL_SEARCH, 1, dataset_name,
+																	trained_adv_einet, evidence_percentage,
+																	rls1_test_x,
+																	batch_size=DEFAULT_EVAL_BATCH_SIZE)
+
+		# 6. Restricted Local search - 3
+		rls3_mean_cll, rls3_std_cll = attack_test_conditional_einet(RESTRICTED_LOCAL_SEARCH, 3, dataset_name,
+																	trained_adv_einet, evidence_percentage,
+																	rls3_test_x,
+																	batch_size=DEFAULT_EVAL_BATCH_SIZE)
+
+		# 7. Restricted Local search - 5
+		rls5_mean_cll, rls5_std_cll = attack_test_conditional_einet(RESTRICTED_LOCAL_SEARCH, 5, dataset_name,
+																	trained_adv_einet, evidence_percentage,
+																	rls5_test_x,
+																	batch_size=DEFAULT_EVAL_BATCH_SIZE)
+		#
+		# # ---------- WEAKER MODEL AREA ------
+
+		# 8. Weaker model - 1
+		w1_mean_cll, w1_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 1, dataset_name,
+																trained_adv_einet, evidence_percentage,
+																w1_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
+
+		# 9. Weaker model - 3
+		w3_mean_cll, w3_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 3, dataset_name,
+																trained_adv_einet, evidence_percentage,
+																w3_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
+
+		# 10. Weaker model - 5
+		w5_mean_cll, w5_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 5, dataset_name,
+																trained_adv_einet, evidence_percentage,
+																w5_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
+
+		# -------------------------------- LOG CONDITIONALS TO WANDB TABLES ------------------------------------
+
+		cll_table.add_data(train_attack_type, perturbations, standard_mean_cll,
+						   ls1_mean_cll, ls3_mean_cll, ls5_mean_cll,
+						   rls1_mean_cll, rls3_mean_cll, rls5_mean_cll,
+						   av_mean_cll_dict[1][evidence_percentage], av_mean_cll_dict[3][evidence_percentage],
+						   av_mean_cll_dict[5][evidence_percentage], w1_mean_cll, w3_mean_cll, w5_mean_cll)
+
+
+# # ------------------------------------------------------------------------------------------------
+# # ----------------------------- CONDITIONAL LIKELIHOOD AREA --------------------------------------
+# # ------------------------------------------------------------------------------------------------
+#
+# def attack_test_conditional_einet(test_attack_type, perturbations, dataset_name, trained_adv_einet,
+# 								  evidence_percentage, test_x, batch_size):
+# 	mean_ll, std_ll = SPN.test_conditional_einet(test_attack_type, perturbations, dataset_name,
+# 												 trained_adv_einet,
+# 												 evidence_percentage, test_x, batch_size=batch_size)
+# 	evaluation_message(
+# 		"{}-{},  Evidence percentage : {}, Mean LL : {}, Std LL  : {}".format(test_attack_type,
+# 																			  perturbations,
+# 																			  evidence_percentage,
+# 																			  mean_ll, std_ll))
+# 	dataset_distribution_evidence_results["{}-{} Mean LL".format(test_attack_type, perturbations)] = mean_ll
+# 	dataset_distribution_evidence_results["{}-{} Std LL".format(test_attack_type, perturbations)] = std_ll
+#
+# 	return mean_ll, std_ll
+#
+# # ---------- AVERAGE ATTACK AREA ------
+#
+# # 8. Average attack dictionary
+# av_mean_cll_dict, av_std_cll_dict = SPN.fetch_average_conditional_likelihoods_for_data(dataset_name,
+# 																					   trained_adv_einet,
+# 																					   device, test_x)
+#
+# for evidence_percentage in EVIDENCE_PERCENTAGES:
+# 	cll_table = cll_tables[evidence_percentage]
+#
+# 	dataset_distribution_evidence_results = dict()
+#
+# 	# 1. Original Test Set
+# 	standard_mean_cll, standard_std_cll = attack_test_conditional_einet(CLEAN, 0, dataset_name,
+# 																		trained_adv_einet,
+# 																		evidence_percentage,
+# 																		standard_test_x,
+# 																		batch_size=DEFAULT_EVAL_BATCH_SIZE)
+#
+# 	# ---------- LOCAL SEARCH AREA ------
+#
+# 	# 2. Local search - 1
+# 	ls1_mean_cll, ls1_std_cll = attack_test_conditional_einet(LOCAL_SEARCH, 1, dataset_name,
+# 															  trained_adv_einet,
+# 															  evidence_percentage,
+# 															  ls1_test_x,
+# 															  batch_size=DEFAULT_EVAL_BATCH_SIZE)
+#
+# 	# 3. Local search - 3
+# 	ls3_mean_cll, ls3_std_cll = attack_test_conditional_einet(LOCAL_SEARCH, 3, dataset_name,
+# 															  trained_adv_einet,
+# 															  evidence_percentage,
+# 															  ls3_test_x,
+# 															  batch_size=DEFAULT_EVAL_BATCH_SIZE)
+#
+# 	# 4. Local search - 5
+# 	ls5_mean_cll, ls5_std_cll = attack_test_conditional_einet(LOCAL_SEARCH, 5, dataset_name,
+# 															  trained_adv_einet,
+# 															  evidence_percentage,
+# 															  ls5_test_x,
+# 															  batch_size=DEFAULT_EVAL_BATCH_SIZE)
+#
+# 	# ---------- RESTRICTED LOCAL SEARCH AREA ------
+#
+# 	# 5. Restricted Local search - 1
+# 	rls1_mean_cll, rls1_std_cll = attack_test_conditional_einet(RESTRICTED_LOCAL_SEARCH, 1, dataset_name,
+# 																trained_adv_einet, evidence_percentage,
+# 																rls1_test_x,
+# 																batch_size=DEFAULT_EVAL_BATCH_SIZE)
+#
+# 	# 6. Restricted Local search - 3
+# 	rls3_mean_cll, rls3_std_cll = attack_test_conditional_einet(RESTRICTED_LOCAL_SEARCH, 3, dataset_name,
+# 																trained_adv_einet, evidence_percentage,
+# 																rls3_test_x,
+# 																batch_size=DEFAULT_EVAL_BATCH_SIZE)
+#
+# 	# 7. Restricted Local search - 5
+# 	rls5_mean_cll, rls5_std_cll = attack_test_conditional_einet(RESTRICTED_LOCAL_SEARCH, 5, dataset_name,
+# 																trained_adv_einet, evidence_percentage,
+# 																rls5_test_x,
+# 																batch_size=DEFAULT_EVAL_BATCH_SIZE)
+# 	#
+# 	# # ---------- WEAKER MODEL AREA ------
+#
+# 	# 8. Weaker model - 1
+# 	w1_mean_cll, w1_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 1, dataset_name,
+# 															trained_adv_einet, evidence_percentage,
+# 															w1_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
+#
+# 	# 9. Weaker model - 3
+# 	w3_mean_cll, w3_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 3, dataset_name,
+# 															trained_adv_einet, evidence_percentage,
+# 															w3_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
+#
+# 	# 10. Weaker model - 5
+# 	w5_mean_cll, w5_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 5, dataset_name,
+# 															trained_adv_einet, evidence_percentage,
+# 															w5_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
+#
+# 	# -------------------------------- LOG CONDITIONALS TO WANDB TABLES ------------------------------------
+#
+# 	cll_table.add_data(train_attack_type, perturbations, standard_mean_cll, standard_std_cll,
+# 					   ls1_mean_cll, ls1_std_cll, ls3_mean_cll, ls3_std_cll, ls5_mean_cll, ls5_std_cll,
+# 					   rls1_mean_cll, rls1_std_cll, rls3_mean_cll, rls3_std_cll, rls5_mean_cll,
+# 					   rls5_std_cll,
+# 					   av_mean_cll_dict[1][evidence_percentage], av_std_cll_dict[1][evidence_percentage],
+# 					   av_mean_cll_dict[3][evidence_percentage], av_std_cll_dict[3][evidence_percentage],
+# 					   av_mean_cll_dict[5][evidence_percentage], av_std_cll_dict[5][evidence_percentage],
+# 					   w1_mean_cll, w1_std_cll, w3_mean_cll, w3_std_cll, w5_mean_cll, w5_std_cll)
 
 
 def train_meta_dro_spn(run_id, device, specific_datasets=None, train_attack_type=None, perturbations=None):
@@ -506,23 +592,24 @@ def train_meta_dro_spn(run_id, device, specific_datasets=None, train_attack_type
 
 			trained_adv_einet = trained_clean_einet
 
-			# if perturbations == 1:
-			# 	# Test the clean einet only once
-			# 	test_trained_einet(dataset_name, trained_clean_einet, trained_clean_einet, train_x, test_x, test_labels,
-			# 					   ll_table, cll_tables, CLEAN, 0)
+			if perturbations == 1:
+				# Test the clean einet only once
+				test_trained_einet(dataset_name, trained_clean_einet, trained_clean_einet, train_x, test_x, test_labels,
+								   ll_table, cll_tables, CLEAN, 0)
 
 			adv_einet = SPN.load_einet(run_id, structure, dataset_name, einet_args, graph, device)
 
 			print("Considering adv einet")
 			trained_adv_einet = SPN.load_pretrained_einet(run_id, structure, dataset_name, einet_args, device,
-														  attack_type=WASSERSTEIN_META, perturbations=perturbations)
+														  attack_type=train_attack_type, perturbations=perturbations)
 			if trained_adv_einet is None:
 				# Test the adversarial einet
-				evaluation_message("Training adversarial einet with attack type {}-{}".format(train_attack_type, perturbations))
+				evaluation_message(
+					"Training adversarial einet with attack type {}-{}".format(train_attack_type, perturbations))
 				trained_adv_einet = train_einet_meta_dro(dataset_name, adv_einet, perturbations, train_x, valid_x,
 														 test_x, einet_args[BATCH_SIZE], einet_args[LEARNING_RATE],
 														 einet_args[WEIGHT_DECAY])
-				SPN.save_model(run_id, trained_adv_einet, dataset_name, structure, einet_args, True, WASSERSTEIN_META,
+				SPN.save_model(run_id, trained_adv_einet, dataset_name, structure, einet_args, True, train_attack_type,
 							   perturbations)
 
 			test_trained_einet(dataset_name, trained_adv_einet, trained_clean_einet, train_x, test_x, test_labels,
@@ -553,7 +640,7 @@ if __name__ == '__main__':
 	ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
 	cll_tables = dataset_wandb_tables[CONDITIONAL_LOGLIKELIHOOD_TABLES]
 
-	# wandb_run.log({"{}-META-DRO-LL".format(dataset_name): ll_table})
-	# for evidence_percentage in EVIDENCE_PERCENTAGES:
-	# 	cll_ev_table = cll_tables[evidence_percentage]
-	# 	wandb_run.log({"{}-META_DRO-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
+	wandb_run.log({"{}-GRADIENT-DRO-LL".format(dataset_name): ll_table})
+	for evidence_percentage in EVIDENCE_PERCENTAGES:
+		cll_ev_table = cll_tables[evidence_percentage]
+		wandb_run.log({"{}-GRADIENT-DRO-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
