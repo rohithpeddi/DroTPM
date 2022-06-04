@@ -139,7 +139,7 @@ def train_einet(dataset_name, einet, train_x, valid_x, test_x, batch_size, learn
 def train_einet_meta_dro(dataset_name, einet, perturbations, train_x, valid_x, test_x, batch_size, learning_rate,
 						 weight_decay):
 	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE,
-								   filepath="{}_{}_{}".format(dataset_name, WASSERSTEIN_META, EARLY_STOPPING_FILE),
+								   filepath="{}_{}_{}_{}".format(dataset_name, WASSERSTEIN_META, perturbations, EARLY_STOPPING_FILE),
 								   delta=EARLY_STOPPING_DELTA)
 	optimizer = optim.Adam(list(einet.parameters()), lr=learning_rate, weight_decay=weight_decay)
 
