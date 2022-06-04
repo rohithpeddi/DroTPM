@@ -151,7 +151,6 @@ def train_einet_meta_dro(dataset_name, einet, perturbations, train_x, valid_x, t
 	meta_adv_epoch_count = 1
 	meta_gradients = torch.zeros(train_x.shape, device=device)
 	for epoch_count in range(1, MAX_NUM_EPOCHS):
-		del tqdm_train_dataloader
 		tqdm_train_dataloader = tqdm(
 			train_dataloader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
 			desc='Training epoch : {}, for dataset : {}'.format(epoch_count, dataset_name),
@@ -224,6 +223,8 @@ def train_einet_meta_dro(dataset_name, einet, perturbations, train_x, valid_x, t
 			if early_stopping.should_stop and epoch_count > 5:
 				print("Early Stopping... {}".format(early_stopping))
 				break
+
+		del tqdm_train_dataloader
 
 	einet.load_state_dict(early_stopping.get_best_state())
 	train_ll, valid_ll, test_ll = SPN.evaluate_lls(einet, train_x, valid_x, test_x, epoch_count=epoch_count)
