@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 import argparse
 import torch
 from torch import optim
@@ -19,6 +20,7 @@ columns = ["attack_type", "perturbations", "standard_mean_ll", "ls1_mean_ll", "l
 		   "w1_mean_ll", "w3_mean_ll", "w5_mean_ll"]
 
 wandb_tables = dict()
+sys.setrecursionlimit(4000)
 
 
 def fetch_wandb_table(dataset_name):
@@ -136,25 +138,27 @@ def train_einet(dataset_name, einet, train_x, valid_x, test_x, batch_size, learn
 
 def train_einet_meta_dro(dataset_name, einet, perturbations, train_x, valid_x, test_x, batch_size, learning_rate,
 						 weight_decay):
-	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE, filepath="{}_{}_{}".format(dataset_name, WASSERSTEIN_META, EARLY_STOPPING_FILE),
+	early_stopping = EarlyStopping(einet, patience=DEFAULT_EINET_PATIENCE,
+								   filepath="{}_{}_{}".format(dataset_name, WASSERSTEIN_META, EARLY_STOPPING_FILE),
 								   delta=EARLY_STOPPING_DELTA)
 	optimizer = optim.Adam(list(einet.parameters()), lr=learning_rate, weight_decay=weight_decay)
 
 	train_dataset = TensorDataset(train_x)
 	train_dataloader = DataLoader(train_dataset, batch_size, shuffle=False)
+
 	einet.train()
 
 	meta_adv_epoch_count = 1
 	meta_gradients = torch.zeros(train_x.shape, device=device)
 	for epoch_count in range(1, MAX_NUM_EPOCHS):
-		train_dataloader = tqdm(
+		del tqdm_train_dataloader
+		tqdm_train_dataloader = tqdm(
 			train_dataloader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
 			desc='Training epoch : {}, for dataset : {}'.format(epoch_count, dataset_name),
 			unit='batch'
 		)
-
 		batch_counter = 0
-		for inputs in train_dataloader:
+		for inputs in tqdm_train_dataloader:
 			einet.train()
 			optimizer.zero_grad()
 
