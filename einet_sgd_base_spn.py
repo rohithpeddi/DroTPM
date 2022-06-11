@@ -169,6 +169,9 @@ def load_pretrained_einet(run_id, structure, dataset_name, einet_args, device, a
 		elif attack_type == WASSERSTEIN_RANDOM_SAMPLES:
 			RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id),
 											   WASSERSTEIN_SAMPLES_EINET_MODEL_DIRECTORY + "/{}".format(perturbations))
+		elif attack_type == WASSERSTEIN_DUAL:
+			RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id),
+											   WASSERSTEIN_DUAL_EINET_MODEL_DIRECTORY + "/{}".format(perturbations))
 
 		mkdir_p(RUN_MODEL_DIRECTORY)
 
@@ -225,7 +228,7 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 	RUN_MODEL_DIRECTORY = os.path.join("run_{}".format(run_id), EINET_MODEL_DIRECTORY)
 
 	if attack_type in [AMBIGUITY_SET_UNIFORM, NEURAL_NET, LOCAL_SEARCH, RESTRICTED_LOCAL_SEARCH,
-					   WASSERSTEIN_RANDOM_SAMPLES, WASSERSTEIN_META]:
+					   WASSERSTEIN_RANDOM_SAMPLES, WASSERSTEIN_META, WASSERSTEIN_DUAL]:
 		if attack_type == NEURAL_NET:
 			sub_directory_name = NEURAL_NETWORK_ATTACK_MODEL_SUB_DIRECTORY
 		elif attack_type == LOCAL_SEARCH:
@@ -238,6 +241,8 @@ def save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attac
 			sub_directory_name = WASSERSTEIN_RANDOM_SAMPLES_ATTACK_MODEL_SUB_DIRECTORY
 		elif attack_type == WASSERSTEIN_META:
 			sub_directory_name = WASSERSTEIN_META_ATTACK_MODEL_SUB_DIRECTORY
+		elif attack_type == WASSERSTEIN_DUAL:
+			sub_directory_name = WASSERSTEIN_DUAL_ATTACK_MODEL_SUB_DIRECTORY
 
 		ATTACK_SUB_DIRECTORY = os.path.join(RUN_MODEL_DIRECTORY, sub_directory_name)
 		ATTACK_MODEL_DIRECTORY = os.path.join(ATTACK_SUB_DIRECTORY, "{}".format(perturbations))

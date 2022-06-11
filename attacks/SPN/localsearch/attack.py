@@ -72,7 +72,7 @@ def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, dev
 		batch_size = max(1, int(2000 / num_dims)) if batched else 1
 
 	dataset = TensorDataset(adv_inputs)
-	data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+	data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
 	data_loader = tqdm(
 		data_loader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
@@ -84,6 +84,89 @@ def generate_adv_dataset(einet, dataset_name, inputs, labels, perturbations, dev
 			adv_sample = generate_adversarial_sample_batched(einet, inputs[0], perturbations, device)
 		else:
 			adv_sample = generate_adversarial_sample(einet, inputs[0], perturbations)
+		perturbed_inputs.append(adv_sample)
+	perturbed_inputs = torch.cat(perturbed_inputs)
+	if combine:
+		return torch.cat((adv_inputs, perturbed_inputs))
+	else:
+		return perturbed_inputs
+
+
+def generate_adversarial_sample_batched_for_dual_dro(einet, lamb, epsilon, inputs, device):
+	batch_size, num_dims = inputs.shape
+	iteration_inputs = inputs.clone().detach()
+
+	identity = torch.cat((torch.zeros(num_dims, device=torch.device(device)).reshape((1, -1)),
+						  torch.eye(num_dims, device=torch.device(device))))
+	identity = identity.repeat((batch_size, 1))
+
+	for iteration in range(5):
+
+		iteration_input_set = torch.repeat_interleave(iteration_inputs,
+												(num_dims + 1) * (
+													torch.ones(batch_size, device=torch.device(device)).int()),
+												dim=0)
+
+		if iteration == 0:
+			input_set = iteration_input_set.clone().detach()
+
+		perturbed_set = identity + iteration_input_set - 2 * torch.mul(identity, iteration_input_set)
+
+		if num_dims > 500:
+			outputs = []
+			batch_counter = 0
+			inner_batch_size = 100
+			perturbed_set_num_samples, _ = perturbed_set.shape
+			perturbed_dataset = TensorDataset(perturbed_set)
+			perturbed_dataloader = DataLoader(perturbed_dataset, shuffle=False, batch_size=inner_batch_size)
+			for perturbed_inputs in perturbed_dataloader:
+				perturbed_likelihoods = (einet(perturbed_inputs[0])).clone().detach().reshape(-1)
+				lamb_part = lamb * (torch.sum(torch.abs((input_set[
+														 batch_counter * inner_batch_size:min(perturbed_set_num_samples,
+																							  (
+																									  batch_counter + 1) * inner_batch_size),
+														 :]
+														 - perturbed_inputs[0])), dim=1) - epsilon)
+				combined_objective = perturbed_likelihoods + lamb_part
+				outputs.append(combined_objective)
+				batch_counter += 1
+			outputs = (torch.cat(outputs)).clone().detach()
+		else:
+			perturbed_likelihoods = (einet(perturbed_set)).clone().detach().reshape(-1)
+			lamb_part = lamb * (torch.sum(torch.abs(input_set-perturbed_set), dim=1) - epsilon)
+			combined_objective = perturbed_likelihoods + lamb_part
+			outputs = combined_objective.clone().detach()
+
+		arg_min_idx = []
+		for batch_idx in range(batch_size):
+			batch_input_min_idx = torch.argmin(
+				outputs[batch_idx * (num_dims + 1):min((batch_idx + 1) * (num_dims + 1), outputs.shape[0])])
+			arg_min_idx.append(batch_idx * (num_dims + 1) + batch_input_min_idx)
+		iteration_inputs = perturbed_set[arg_min_idx, :]
+
+	adv_sample_batched = iteration_inputs
+	return adv_sample_batched
+
+
+def generate_adv_dataset_for_dual(einet, lamb, epsilon, dataset_name, inputs, device, combine=False, batched=True):
+	adv_inputs = inputs.detach().clone()
+	original_N, num_dims = inputs.shape
+
+	if dataset_name in SMALL_VARIABLE_DATASETS:
+		batch_size = max(1, int(5000 / num_dims)) if batched else 1
+	else:
+		batch_size = max(1, int(2000 / num_dims)) if batched else 1
+
+	dataset = TensorDataset(adv_inputs)
+	data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+	data_loader = tqdm(
+		data_loader, leave=False, bar_format='{l_bar}{bar:24}{r_bar}',
+		desc='Generating adv samples for {}'.format(dataset_name), unit='batch'
+	)
+	perturbed_inputs = []
+	for inputs in data_loader:
+		adv_sample = generate_adversarial_sample_batched_for_dual_dro(einet, lamb, epsilon, inputs[0], device)
 		perturbed_inputs.append(adv_sample)
 	perturbed_inputs = torch.cat(perturbed_inputs)
 	if combine:
