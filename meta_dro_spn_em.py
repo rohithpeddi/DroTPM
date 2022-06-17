@@ -250,7 +250,8 @@ def test_trained_einet(dataset_name, trained_adv_einet, trained_clean_einet, tra
 						  perturbations, attack_type, batch_size, is_adv):
 		mean_ll, std_ll, attack_test_x = SPN.test_einet(dataset_name, trained_adv_einet, trained_clean_einet, train_x,
 														test_x, test_labels, perturbations=perturbations, device=device,
-														attack_type=attack_type, batch_size=batch_size, is_adv=is_adv)
+														combine=False, attack_type=attack_type, batch_size=batch_size,
+														is_adv=is_adv)
 		evaluation_message("{}-{} Mean LL : {}, Std LL : {}".format(attack_type, perturbations, mean_ll, std_ll))
 
 		return mean_ll, std_ll, attack_test_x

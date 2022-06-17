@@ -385,12 +385,12 @@ def fetch_average_likelihoods_for_data(dataset_name, trained_einet, device, test
 	return av_mean_dict, av_std_dict
 
 
-def test_einet(dataset_name, trained_einet, data_einet, train_x, test_x, test_labels, perturbations, device,
+def test_einet(dataset_name, trained_einet, data_einet, train_x, test_x, test_labels, perturbations, device, combine=False,
 			   attack_type=None, batch_size=1, is_adv=False):
 	trained_einet.eval()
 	if is_adv:
 		test_x = fetch_adv_data(data_einet, dataset_name, train_x, test_x, test_labels, perturbations, attack_type,
-								device, TEST_DATASET, combine=False).tensors[0]
+								device, TEST_DATASET, combine).tensors[0]
 
 	test_lls = EinsumNetwork.fetch_likelihoods_for_data(trained_einet, test_x, batch_size=batch_size)
 

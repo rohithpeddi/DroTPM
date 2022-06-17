@@ -1,3 +1,5 @@
+import argparse
+
 import torch
 import wandb
 import einet_base_spn as SPN
@@ -8,16 +10,21 @@ from utils import pretty_print_dictionary, dictionary_to_file
 ############################################################################
 
 
-run1 = wandb.init(project="DROSPN", entity="utd-ml-pgm")
+# run1 = wandb.init(project="DROSPN", entity="utd-ml-pgm")
 # run1 = wandb.init(project="ROSPN", entity="rohithpeddi")
+wandb_run = wandb.init(project="DROSPN-EM", entity="utd-ml-pgm")
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-columns = ["attack_type", "perturbations", "standard_mean_ll", "standard_std_ll",
-		   "ls1_mean_ll", "ls1_std_ll", "ls3_mean_ll", "ls3_std_ll", "ls5_mean_ll", "ls5_std_ll",
-		   "rls1_mean_ll", "rls1_std_ll", "rls3_mean_ll", "rls3_std_ll", "rls5_mean_ll", "rls5_std_ll",
-		   "av1_mean_ll", "av1_std_ll", "av3_mean_ll", "av3_std_ll", "av5_mean_ll", "av5_std_ll",
-		   "w1_mean_ll", "w1_std_ll", "w3_mean_ll", "w3_std_ll", "w5_mean_ll", "w5_std_ll"]
+# columns = ["attack_type", "perturbations", "standard_mean_ll", "standard_std_ll",
+# 		   "ls1_mean_ll", "ls1_std_ll", "ls3_mean_ll", "ls3_std_ll", "ls5_mean_ll", "ls5_std_ll",
+# 		   "rls1_mean_ll", "rls1_std_ll", "rls3_mean_ll", "rls3_std_ll", "rls5_mean_ll", "rls5_std_ll",
+# 		   "av1_mean_ll", "av1_std_ll", "av3_mean_ll", "av3_std_ll", "av5_mean_ll", "av5_std_ll",
+# 		   "w1_mean_ll", "w1_std_ll", "w3_mean_ll", "w3_std_ll", "w5_mean_ll", "w5_std_ll"]
+
+columns = ["attack_type", "perturbations", "standard_mean_ll", "ls1_mean_ll", "ls3_mean_ll", "ls5_mean_ll",
+		   "rls1_mean_ll", "rls3_mean_ll", "rls5_mean_ll", "av1_mean_ll", "av3_mean_ll", "av5_mean_ll",
+		   "w1_mean_ll", "w3_mean_ll", "w5_mean_ll"]
 
 # columns = ["attack_type", "perturbations", "standard_mean_ll", "standard_std_ll",
 # 		   "ls1_mean_ll", "ls1_std_ll", "ls3_mean_ll", "ls3_std_ll", "ls5_mean_ll", "ls5_std_ll",
@@ -200,16 +207,16 @@ def test_standard_spn_discrete(run_id, specific_datasets=None, is_adv=False, tra
 
 			# ------  AVERAGE ATTACK AREA ------
 
-			av_mean_ll_dict, av_std_ll_dict = SPN.fetch_average_likelihoods_for_data(dataset_name, trained_adv_einet,
-																					 device, test_x)
+			# av_mean_ll_dict, av_std_ll_dict = SPN.fetch_average_likelihoods_for_data(dataset_name, trained_adv_einet,
+			# 																		 device, test_x)
 
 			def attack_test_einet(dataset_name, trained_adv_einet, trained_clean_einet, train_x, test_x, test_labels,
-								  perturbations, attack_type, batch_size, is_adv):
+								  perturbations, attack_type, batch_size, is_adv, combine=False):
 				mean_ll, std_ll, attack_test_x = SPN.test_einet(dataset_name, trained_adv_einet, trained_clean_einet,
 																train_x, test_x, test_labels,
 																perturbations=perturbations, device=device,
-																attack_type=attack_type, batch_size=batch_size,
-																is_adv=is_adv)
+																combine=combine, attack_type=attack_type,
+																batch_size=batch_size, is_adv=is_adv)
 				evaluation_message("{} Mean LL : {}, Std LL : {}".format(attack_type, mean_ll, std_ll))
 
 				dataset_distribution_results["{} Mean LL".format(attack_type)] = mean_ll
@@ -268,39 +275,42 @@ def test_standard_spn_discrete(run_id, specific_datasets=None, is_adv=False, tra
 																	   attack_type=RESTRICTED_LOCAL_SEARCH,
 																	   batch_size=DEFAULT_EVAL_BATCH_SIZE, is_adv=True)
 
-			# ------------- WEAKER MODEL ATTACK --------
-
-			# 11. Weaker model attack - 1 Test Set
-			w1_mean_ll, w1_std_ll, w1_test_x = attack_test_einet(dataset_name, trained_adv_einet, trained_clean_einet,
-																 train_x, test_x, test_labels, perturbations=1,
-																 attack_type=WEAKER_MODEL,
-																 batch_size=DEFAULT_EVAL_BATCH_SIZE, is_adv=True)
-
-			# 12. Weaker model attack - 3 Test Set
-			w3_mean_ll, w3_std_ll, w3_test_x = attack_test_einet(dataset_name, trained_adv_einet, trained_clean_einet,
-																 train_x, test_x, test_labels, perturbations=3,
-																 attack_type=WEAKER_MODEL,
-																 batch_size=DEFAULT_EVAL_BATCH_SIZE, is_adv=True)
-
-			# 13. Weaker model attack - 5 Test Set
-			w5_mean_ll, w5_std_ll, w5_test_x = attack_test_einet(dataset_name, trained_adv_einet, trained_clean_einet,
-																 train_x, test_x, test_labels, perturbations=5,
-																 attack_type=WEAKER_MODEL,
-																 batch_size=DEFAULT_EVAL_BATCH_SIZE, is_adv=True)
+			# # ------------- WEAKER MODEL ATTACK --------
+			#
+			# # 11. Weaker model attack - 1 Test Set
+			# w1_mean_ll, w1_std_ll, w1_test_x = attack_test_einet(dataset_name, trained_adv_einet, trained_clean_einet,
+			# 													 train_x, test_x, test_labels, perturbations=1,
+			# 													 attack_type=WEAKER_MODEL,
+			# 													 batch_size=DEFAULT_EVAL_BATCH_SIZE, is_adv=True)
+			#
+			# # 12. Weaker model attack - 3 Test Set
+			# w3_mean_ll, w3_std_ll, w3_test_x = attack_test_einet(dataset_name, trained_adv_einet, trained_clean_einet,
+			# 													 train_x, test_x, test_labels, perturbations=3,
+			# 													 attack_type=WEAKER_MODEL,
+			# 													 batch_size=DEFAULT_EVAL_BATCH_SIZE, is_adv=True)
+			#
+			# # 13. Weaker model attack - 5 Test Set
+			# w5_mean_ll, w5_std_ll, w5_test_x = attack_test_einet(dataset_name, trained_adv_einet, trained_clean_einet,
+			# 													 train_x, test_x, test_labels, perturbations=5,
+			# 													 attack_type=WEAKER_MODEL,
+			# 													 batch_size=DEFAULT_EVAL_BATCH_SIZE, is_adv=True)
 
 			# -------------------------------- LOG LIKELIHOOD TO WANDB TABLES ------------------------------------
-
-			ll_table.add_data(train_attack_type, perturbations, standard_mean_ll, standard_std_ll,
-							  ls1_mean_ll, ls1_std_ll, ls3_mean_ll, ls3_std_ll, ls5_mean_ll, ls5_std_ll,
-							  rls1_mean_ll, rls1_std_ll, rls3_mean_ll, rls3_std_ll, rls5_mean_ll, rls5_std_ll,
-							  av_mean_ll_dict[1], av_std_ll_dict[1], av_mean_ll_dict[3], av_std_ll_dict[3],
-							  av_mean_ll_dict[5], av_std_ll_dict[5],
-							  w1_mean_ll, w1_std_ll, w3_mean_ll, w3_std_ll, w5_mean_ll, w5_std_ll)
 
 			# ll_table.add_data(train_attack_type, perturbations, standard_mean_ll, standard_std_ll,
 			# 				  ls1_mean_ll, ls1_std_ll, ls3_mean_ll, ls3_std_ll, ls5_mean_ll, ls5_std_ll,
 			# 				  rls1_mean_ll, rls1_std_ll, rls3_mean_ll, rls3_std_ll, rls5_mean_ll, rls5_std_ll,
+			# 				  av_mean_ll_dict[1], av_std_ll_dict[1], av_mean_ll_dict[3], av_std_ll_dict[3],
+			# 				  av_mean_ll_dict[5], av_std_ll_dict[5],
 			# 				  w1_mean_ll, w1_std_ll, w3_mean_ll, w3_std_ll, w5_mean_ll, w5_std_ll)
+
+			# ll_table.add_data(train_attack_type, perturbations, standard_mean_ll, ls1_mean_ll, ls3_mean_ll, ls5_mean_ll,
+			# 				  rls1_mean_ll, rls3_mean_ll, rls5_mean_ll,
+			# 				  av_mean_ll_dict[1], av_mean_ll_dict[3], av_mean_ll_dict[5],
+			# 				  w1_mean_ll, w3_mean_ll, w5_mean_ll)
+
+			ll_table.add_data(train_attack_type, perturbations, standard_mean_ll, ls1_mean_ll, ls3_mean_ll, ls5_mean_ll,
+							  rls1_mean_ll, rls3_mean_ll, rls5_mean_ll)
 
 			# ll_table.add_data(train_attack_type, perturbations, standard_mean_ll, standard_std_ll,
 			# 				  rls1_mean_ll, rls1_std_ll, rls3_mean_ll, rls3_std_ll, rls5_mean_ll, rls5_std_ll)
@@ -327,10 +337,10 @@ def test_standard_spn_discrete(run_id, specific_datasets=None, is_adv=False, tra
 
 			# ---------- AVERAGE ATTACK AREA ------
 
-			# 8. Average attack dictionary
-			av_mean_cll_dict, av_std_cll_dict = SPN.fetch_average_conditional_likelihoods_for_data(dataset_name,
-																								   trained_adv_einet,
-																								   device, test_x)
+			# # 8. Average attack dictionary
+			# av_mean_cll_dict, av_std_cll_dict = SPN.fetch_average_conditional_likelihoods_for_data(dataset_name,
+			# 																					   trained_adv_einet,
+			# 																					   device, test_x)
 
 			for evidence_percentage in EVIDENCE_PERCENTAGES:
 				cll_table = cll_tables[evidence_percentage]
@@ -386,39 +396,44 @@ def test_standard_spn_discrete(run_id, specific_datasets=None, is_adv=False, tra
 																			trained_adv_einet, evidence_percentage,
 																			rls5_test_x,
 																			batch_size=DEFAULT_EVAL_BATCH_SIZE)
+				# #
+				# # # ---------- WEAKER MODEL AREA ------
 				#
-				# # ---------- WEAKER MODEL AREA ------
-
-				# 8. Weaker model - 1
-				w1_mean_cll, w1_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 1, dataset_name,
-																		trained_adv_einet, evidence_percentage,
-																		w1_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
-
-				# 9. Weaker model - 3
-				w3_mean_cll, w3_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 3, dataset_name,
-																		trained_adv_einet, evidence_percentage,
-																		w3_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
-
-				# 10. Weaker model - 5
-				w5_mean_cll, w5_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 5, dataset_name,
-																		trained_adv_einet, evidence_percentage,
-																		w5_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
+				# # 8. Weaker model - 1
+				# w1_mean_cll, w1_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 1, dataset_name,
+				# 														trained_adv_einet, evidence_percentage,
+				# 														w1_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
+				#
+				# # 9. Weaker model - 3
+				# w3_mean_cll, w3_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 3, dataset_name,
+				# 														trained_adv_einet, evidence_percentage,
+				# 														w3_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
+				#
+				# # 10. Weaker model - 5
+				# w5_mean_cll, w5_std_cll = attack_test_conditional_einet(WEAKER_MODEL, 5, dataset_name,
+				# 														trained_adv_einet, evidence_percentage,
+				# 														w5_test_x, batch_size=DEFAULT_EVAL_BATCH_SIZE)
 
 				# -------------------------------- LOG CONDITIONALS TO WANDB TABLES ------------------------------------
-
-				cll_table.add_data(train_attack_type, perturbations, standard_mean_cll, standard_std_cll,
-								   ls1_mean_cll, ls1_std_cll, ls3_mean_cll, ls3_std_cll, ls5_mean_cll, ls5_std_cll,
-								   rls1_mean_cll, rls1_std_cll, rls3_mean_cll, rls3_std_cll, rls5_mean_cll,
-								   rls5_std_cll,
-								   av_mean_cll_dict[1][evidence_percentage], av_std_cll_dict[1][evidence_percentage],
-								   av_mean_cll_dict[3][evidence_percentage], av_std_cll_dict[3][evidence_percentage],
-								   av_mean_cll_dict[5][evidence_percentage], av_std_cll_dict[5][evidence_percentage],
-								   w1_mean_cll, w1_std_cll, w3_mean_cll, w3_std_cll, w5_mean_cll, w5_std_cll)
 
 				# cll_table.add_data(train_attack_type, perturbations, standard_mean_cll, standard_std_cll,
 				# 				   ls1_mean_cll, ls1_std_cll, ls3_mean_cll, ls3_std_cll, ls5_mean_cll, ls5_std_cll,
 				# 				   rls1_mean_cll, rls1_std_cll, rls3_mean_cll, rls3_std_cll, rls5_mean_cll,
-				# 				   rls5_std_cll, w1_mean_cll, w1_std_cll, w3_mean_cll, w3_std_cll, w5_mean_cll, w5_std_cll)
+				# 				   rls5_std_cll,
+				# 				   av_mean_cll_dict[1][evidence_percentage], av_std_cll_dict[1][evidence_percentage],
+				# 				   av_mean_cll_dict[3][evidence_percentage], av_std_cll_dict[3][evidence_percentage],
+				# 				   av_mean_cll_dict[5][evidence_percentage], av_std_cll_dict[5][evidence_percentage],
+				# 				   w1_mean_cll, w1_std_cll, w3_mean_cll, w3_std_cll, w5_mean_cll, w5_std_cll)
+
+				cll_table.add_data(train_attack_type, perturbations, standard_mean_cll,
+								   ls1_mean_cll, ls3_mean_cll, ls5_mean_cll,
+								   rls1_mean_cll, rls3_mean_cll, rls5_mean_cll)
+
+				# cll_table.add_data(train_attack_type, perturbations, standard_mean_cll,
+				# 				   ls1_mean_cll, ls3_mean_cll, ls5_mean_cll,
+				# 				   rls1_mean_cll, rls3_mean_cll, rls5_mean_cll,
+				# 				   av_mean_cll_dict[1][evidence_percentage], av_mean_cll_dict[3][evidence_percentage],
+				# 				   av_mean_cll_dict[5][evidence_percentage], w1_mean_cll, w3_mean_cll, w5_mean_cll)
 
 				# cll_table.add_data(train_attack_type, perturbations, standard_mean_cll, standard_std_cll,
 				# 				   rls1_mean_cll, rls1_std_cll, rls3_mean_cll, rls3_std_cll, rls5_mean_cll, rls5_std_cll)
@@ -436,30 +451,39 @@ def test_standard_spn_discrete(run_id, specific_datasets=None, is_adv=False, tra
 
 if __name__ == '__main__':
 
-	for dataset_name in DEBD_DATASETS:
-		for perturbation in PERTURBATIONS:
-			if perturbation == 0:
-				TRAIN_ATTACKS = [CLEAN]
-			else:
-				TRAIN_ATTACKS = [AMBIGUITY_SET_UNIFORM]
-				# TRAIN_ATTACKS = [LOCAL_SEARCH, RESTRICTED_LOCAL_SEARCH]
+	parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+	parser.add_argument('--dataset', type=str, required=True, help="dataset name")
+	parser.add_argument('--runid', type=str, required=True, help="run id")
+	ARGS = parser.parse_args()
+	print(ARGS)
 
-			for train_attack_type in TRAIN_ATTACKS:
-				evaluation_message(
-					"Logging values for {}, perturbation {}, train attack type {}".format(dataset_name, perturbation,
-																						  train_attack_type))
-				if perturbation != 0:
-					test_standard_spn_discrete(run_id=224, specific_datasets=dataset_name, is_adv=True,
-											   train_attack_type=train_attack_type, perturbations=perturbation)
-				elif perturbation == 0:
-					test_standard_spn_discrete(run_id=224, specific_datasets=dataset_name, is_adv=False,
-											   train_attack_type=train_attack_type, perturbations=perturbation)
+	dataset_name = ARGS.dataset
+	run_id = ARGS.runid
 
-		dataset_wandb_tables = fetch_wandb_table(dataset_name)
-		ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
-		cll_tables = dataset_wandb_tables[CONDITIONAL_LOGLIKELIHOOD_TABLES]
+	device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-		run1.log({"{}-AMU-LL".format(dataset_name): ll_table})
-		for evidence_percentage in EVIDENCE_PERCENTAGES:
-			cll_ev_table = cll_tables[evidence_percentage]
-			run1.log({"{}-AMU-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
+	for perturbation in PERTURBATIONS:
+		if perturbation == 0:
+			TRAIN_ATTACKS = [CLEAN]
+		else:
+			TRAIN_ATTACKS = [LOCAL_SEARCH]
+
+		for train_attack_type in TRAIN_ATTACKS:
+			evaluation_message(
+				"Logging values for {}, perturbation {}, train attack type {}".format(dataset_name, perturbation,
+																					  train_attack_type))
+			if perturbation != 0:
+				test_standard_spn_discrete(run_id=run_id, specific_datasets=dataset_name, is_adv=True,
+										   train_attack_type=train_attack_type, perturbations=perturbation)
+			elif perturbation == 0:
+				test_standard_spn_discrete(run_id=run_id, specific_datasets=dataset_name, is_adv=False,
+										   train_attack_type=train_attack_type, perturbations=perturbation)
+
+	dataset_wandb_tables = fetch_wandb_table(dataset_name)
+	ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
+	cll_tables = dataset_wandb_tables[CONDITIONAL_LOGLIKELIHOOD_TABLES]
+
+	wandb_run.log({"{}-RO-EM-LL".format(dataset_name): ll_table})
+	for evidence_percentage in EVIDENCE_PERCENTAGES:
+		cll_ev_table = cll_tables[evidence_percentage]
+		wandb_run.log({"{}-RO-EM-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
