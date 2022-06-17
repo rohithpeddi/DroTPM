@@ -23,8 +23,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # 		   "w1_mean_ll", "w1_std_ll", "w3_mean_ll", "w3_std_ll", "w5_mean_ll", "w5_std_ll"]
 
 columns = ["attack_type", "perturbations", "standard_mean_ll", "ls1_mean_ll", "ls3_mean_ll", "ls5_mean_ll",
-		   "rls1_mean_ll", "rls3_mean_ll", "rls5_mean_ll", "av1_mean_ll", "av3_mean_ll", "av5_mean_ll",
-		   "w1_mean_ll", "w3_mean_ll", "w5_mean_ll"]
+		   "rls1_mean_ll", "rls3_mean_ll", "rls5_mean_ll"]
 
 # columns = ["attack_type", "perturbations", "standard_mean_ll", "standard_std_ll",
 # 		   "ls1_mean_ll", "ls1_std_ll", "ls3_mean_ll", "ls3_std_ll", "ls5_mean_ll", "ls5_std_ll",
