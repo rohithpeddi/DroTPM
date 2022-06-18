@@ -285,7 +285,7 @@ def train_einet(run_id, structure, dataset_name, einet, train_labels, train_x, v
 		if is_adv:
 			print("Fetching adversarial data, training epoch {}".format(epoch_count))
 			train_dataset = fetch_adv_data(einet, dataset_name, train_x, train_x, train_labels, perturbations,
-										   attack_type, device, TRAIN_DATASET, combine=True)
+										   attack_type, device, TRAIN_DATASET, combine=False)
 
 	save_model(run_id, einet, dataset_name, structure, einet_args, is_adv, attack_type, perturbations)
 
