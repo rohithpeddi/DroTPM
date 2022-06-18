@@ -12,7 +12,8 @@ from utils import pretty_print_dictionary, dictionary_to_file
 
 # run1 = wandb.init(project="DROSPN", entity="utd-ml-pgm")
 # run1 = wandb.init(project="ROSPN", entity="rohithpeddi")
-wandb_run = wandb.init(project="DROSPN-EM", entity="utd-ml-pgm")
+# wandb_run = wandb.init(project="DROSPN-EM", entity="utd-ml-pgm")
+wandb_run = wandb.init(project="DROSPN-AUG-EM", entity="utd-ml-pgm")
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -482,7 +483,12 @@ if __name__ == '__main__':
 	ll_table = dataset_wandb_tables[LOGLIKELIHOOD_TABLE]
 	cll_tables = dataset_wandb_tables[CONDITIONAL_LOGLIKELIHOOD_TABLES]
 
-	wandb_run.log({"{}-RO-EM-LL".format(dataset_name): ll_table})
+	# wandb_run.log({"{}-RO-EM-LL".format(dataset_name): ll_table})
+	# for evidence_percentage in EVIDENCE_PERCENTAGES:
+	# 	cll_ev_table = cll_tables[evidence_percentage]
+	# 	wandb_run.log({"{}-RO-EM-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
+
+	wandb_run.log({"{}-RO-AUG-EM-LL".format(dataset_name): ll_table})
 	for evidence_percentage in EVIDENCE_PERCENTAGES:
 		cll_ev_table = cll_tables[evidence_percentage]
-		wandb_run.log({"{}-RO-EM-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
+		wandb_run.log({"{}-RO-AUG-EM-CLL-{}".format(dataset_name, evidence_percentage): cll_ev_table})
